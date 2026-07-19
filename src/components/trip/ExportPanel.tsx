@@ -212,9 +212,12 @@ export function ExportPanel() {
               position: "relative",
             }}
           >
-            <RoadTripAnimation onComplete={() => {
-              doneRef.current = true;
-            }} />
+            <RoadTripAnimation
+              showControls={false}
+              onComplete={() => {
+                doneRef.current = true;
+              }}
+            />
           </div>
         </div>
       )}

@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  animate,
   AnimatePresence,
   motion,
   useMotionValue,
   useMotionValueEvent,
   useTransform,
 } from "framer-motion";
+import { Pause, Play, RotateCcw } from "lucide-react";
 
 import { ROUTE_PATH, WAYPOINTS, TOTAL_MILES } from "@/lib/trip-data";
 import { UsaMap } from "./UsaMap";
@@ -26,37 +26,188 @@ type Stage =
   | "outro"
   | "done";
 
-export function RoadTripAnimation({ onComplete }: { onComplete?: () => void } = {}) {
+type EaseFn = (x: number) => number;
+type ContKf = { t: number; v: number; ease?: EaseFn };
+type StepKf<T> = { t: number; v: T };
+
+type Timeline = {
+  duration: number;
+  camX: ContKf[];
+  camY: ContKf[];
+  camS: ContKf[];
+  path: ContKf[];
+  rvOp: ContKf[];
+  stage: StepKf<Stage>[];
+  visible: StepKf<number>[];
+  moving: StepKf<0 | 1>[];
+  title: StepKf<boolean>[];
+};
+
+function bezier(p1x: number, p1y: number, p2x: number, p2y: number): EaseFn {
+  return (x: number) => {
+    if (x <= 0) return 0;
+    if (x >= 1) return 1;
+    let t = x;
+    for (let i = 0; i < 8; i++) {
+      const bx =
+        3 * (1 - t) * (1 - t) * t * p1x + 3 * (1 - t) * t * t * p2x + t * t * t;
+      const dbx =
+        3 * (1 - t) * (1 - t) * p1x +
+        6 * (1 - t) * t * (p2x - p1x) +
+        3 * t * t * (1 - p2x);
+      if (Math.abs(dbx) < 1e-6) break;
+      t = Math.max(0, Math.min(1, t - (bx - x) / dbx));
+    }
+    return (
+      3 * (1 - t) * (1 - t) * t * p1y + 3 * (1 - t) * t * t * p2y + t * t * t
+    );
+  };
+}
+
+const easeCam = bezier(0.65, 0, 0.35, 1);
+const easeDrive = bezier(0.45, 0.05, 0.35, 1);
+const easeOut = bezier(0, 0, 0.35, 1);
+
+function sampleCont(kfs: ContKf[], t: number): number {
+  if (t <= kfs[0].t) return kfs[0].v;
+  for (let i = 0; i < kfs.length - 1; i++) {
+    const a = kfs[i];
+    const b = kfs[i + 1];
+    if (t <= b.t) {
+      const span = b.t - a.t;
+      const p = span > 0 ? (t - a.t) / span : 1;
+      const e = a.ease ? a.ease(p) : p;
+      return a.v + (b.v - a.v) * e;
+    }
+  }
+  return kfs[kfs.length - 1].v;
+}
+
+function sampleStep<T>(kfs: StepKf<T>[], t: number): T {
+  let cur = kfs[0].v;
+  for (const k of kfs) {
+    if (t + 1e-6 >= k.t) cur = k.v;
+    else break;
+  }
+  return cur;
+}
+
+function buildTimeline(segmentLens: number[]): Timeline {
+  const camX: ContKf[] = [{ t: 0, v: 500 }];
+  const camY: ContKf[] = [{ t: 0, v: 310 }];
+  const camS: ContKf[] = [{ t: 0, v: 1 }];
+  const path: ContKf[] = [{ t: 0, v: 0 }];
+  const rvOp: ContKf[] = [{ t: 0, v: 0 }];
+  const stage: StepKf<Stage>[] = [{ t: 0, v: "intro" }];
+  const visible: StepKf<number>[] = [{ t: 0, v: -1 }];
+  const moving: StepKf<0 | 1>[] = [{ t: 0, v: 0 }];
+  const title: StepKf<boolean>[] = [{ t: 0, v: true }];
+
+  const add = (kfs: ContKf[], t: number, v: number, ease?: EaseFn) => {
+    if (ease) kfs[kfs.length - 1].ease = ease;
+    kfs.push({ t, v });
+  };
+
+  let t = 0;
+
+  // Scene 1 — intro title (3.2s)
+  t += 3.2;
+  stage.push({ t, v: "reveal" });
+  title.push({ t, v: false });
+
+  // Scene 2 — reveal drift (1.6s, camera stays)
+  t += 1.6;
+  stage.push({ t, v: "zoomHome" });
+
+  // Scene 3 — zoom to home (2.2s)
+  const home = WAYPOINTS[0];
+  add(camX, t + 2.2, home.x, easeCam);
+  add(camY, t + 2.2, home.y, easeCam);
+  add(camS, t + 2.2, 2.4, easeCam);
+  t += 2.2;
+
+  // Scene 4 — RV bounce in (fade 0.6s, then hold 0.8s)
+  add(rvOp, t + 0.6, 1, easeOut);
+  t += 0.6;
+  visible.push({ t, v: 0 });
+  t += 0.8;
+
+  // Scene 5 — drive each segment
+  for (let i = 1; i < WAYPOINTS.length; i++) {
+    const toLen = segmentLens[i];
+    const miles = WAYPOINTS[i].milesFromPrev;
+    const driveDur = Math.min(3.4, Math.max(1.8, miles / 160));
+    const midX = (WAYPOINTS[i].x + WAYPOINTS[i - 1].x) / 2;
+    const midY = (WAYPOINTS[i].y + WAYPOINTS[i - 1].y) / 2;
+
+    moving.push({ t, v: 1 });
+    stage.push({ t, v: "driving" });
+    add(camX, t + driveDur, midX, easeCam);
+    add(camY, t + driveDur, midY, easeCam);
+    add(camS, t + driveDur, 2.1, easeCam);
+    add(path, t + driveDur, toLen, easeDrive);
+    t += driveDur;
+    moving.push({ t, v: 0 });
+
+    // Arrive: 1.2s zoom + drop pin, then 2s pause
+    stage.push({ t, v: "arrived" });
+    add(camX, t + 1.2, WAYPOINTS[i].x, easeCam);
+    add(camY, t + 1.2, WAYPOINTS[i].y, easeCam);
+    add(camS, t + 1.2, 2.8, easeCam);
+    t += 1.2;
+    visible.push({ t, v: i });
+    t += 2.0;
+  }
+
+  // Scene 6 — outro overview (2.6s + 2.2s hold)
+  stage.push({ t, v: "outro" });
+  add(camX, t + 2.6, 500, easeCam);
+  add(camY, t + 2.6, 310, easeCam);
+  add(camS, t + 2.6, 1, easeCam);
+  t += 2.6;
+  t += 2.2;
+  stage.push({ t, v: "done" });
+
+  return { duration: t, camX, camY, camS, path, rvOp, stage, visible, moving, title };
+}
+
+export function RoadTripAnimation({
+  onComplete,
+  autoPlay = true,
+  showControls = true,
+}: {
+  onComplete?: () => void;
+  autoPlay?: boolean;
+  showControls?: boolean;
+} = {}) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const pathRef = useRef<SVGPathElement | null>(null);
 
-  // Segment cumulative lengths measured from the real SVG path.
   const [segmentLens, setSegmentLens] = useState<number[]>([]);
   const totalLen = segmentLens.at(-1) ?? 0;
 
-  // Live motion values.
-  const pathLen = useMotionValue(0);          // 0..totalLen, RV progress
+  // Live motion values driven from the deterministic timeline.
+  const pathLen = useMotionValue(0);
   const camX = useMotionValue(500);
   const camY = useMotionValue(310);
   const camScale = useMotionValue(1);
   const rvOpacity = useMotionValue(0);
-  const rvMoving = useMotionValue(0);         // 0 idle, 1 driving (wheels)
+  const rvMoving = useMotionValue(0);
 
   const [stage, setStage] = useState<Stage>("intro");
-  const [visibleIndex, setVisibleIndex] = useState<number>(-1); // last pin dropped
+  const [visibleIndex, setVisibleIndex] = useState<number>(-1);
+  const [titleVisible, setTitleVisible] = useState(true);
+  const [time, setTime] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [rvPos, setRvPos] = useState({ x: WAYPOINTS[0].x, y: WAYPOINTS[0].y, angle: 0 });
 
-  // Route drawing — dash offset shrinks as RV advances.
   const dashOffset = useTransform(pathLen, (v) => Math.max(totalLen - v, 0));
 
   // ── measure the path once mounted ──────────────────────────────────────────
   useEffect(() => {
     const path = pathRef.current;
     if (!path) return;
-    // getTotalLength on the composite path.
     const full = path.getTotalLength();
-    // For segment boundaries, we walk the path and mark where each waypoint sits
-    // by finding the point nearest to each waypoint via coarse search.
     const samples = 2000;
     const pts: { x: number; y: number; d: number }[] = [];
     for (let i = 0; i <= samples; i++) {
@@ -85,7 +236,6 @@ export function RoadTripAnimation({ onComplete }: { onComplete?: () => void } = 
     setSegmentLens(lens);
   }, []);
 
-  // ── keep RV sprite state (x/y/angle) in sync with pathLen ─────────────────
   useMotionValueEvent(pathLen, "change", (v) => {
     const path = pathRef.current;
     if (!path) return;
@@ -95,100 +245,116 @@ export function RoadTripAnimation({ onComplete }: { onComplete?: () => void } = 
     setRvPos({ x: p.x, y: p.y, angle });
   });
 
-  // ── main timeline ─────────────────────────────────────────────────────────
+  // Build a deterministic, scrub-friendly timeline.
+  const timeline = useMemo<Timeline | null>(
+    () => (segmentLens.length ? buildTimeline(segmentLens) : null),
+    [segmentLens],
+  );
+  const duration = timeline?.duration ?? 0;
+
+  const timeRef = useRef(0);
+  const completedRef = useRef(false);
+
+  const applyAt = useCallback(
+    (t: number) => {
+      if (!timeline) return;
+      camX.set(sampleCont(timeline.camX, t));
+      camY.set(sampleCont(timeline.camY, t));
+      camScale.set(sampleCont(timeline.camS, t));
+      pathLen.set(sampleCont(timeline.path, t));
+      rvOpacity.set(sampleCont(timeline.rvOp, t));
+      rvMoving.set(sampleStep(timeline.moving, t));
+      const nextStage = sampleStep(timeline.stage, t);
+      setStage((prev) => (prev === nextStage ? prev : nextStage));
+      const nvi = sampleStep(timeline.visible, t);
+      setVisibleIndex((prev) => (prev === nvi ? prev : nvi));
+      const tv = sampleStep(timeline.title, t);
+      setTitleVisible((prev) => (prev === tv ? prev : tv));
+    },
+    [timeline, camX, camY, camScale, pathLen, rvOpacity, rvMoving],
+  );
+
+  // Initial snap once timeline is available.
   useEffect(() => {
-    if (segmentLens.length === 0) return;
-    let cancelled = false;
+    if (timeline) applyAt(timeRef.current);
+  }, [timeline, applyAt]);
 
-    const wait = (ms: number) =>
-      new Promise<void>((res) => setTimeout(() => (cancelled ? null : res()), ms));
+  // Autoplay when timeline first becomes ready.
+  useEffect(() => {
+    if (timeline && autoPlay && !completedRef.current) setIsPlaying(true);
+  }, [timeline, autoPlay]);
 
-    const easeCam = { type: "tween" as const, ease: [0.65, 0, 0.35, 1] as const };
-
-    const flyTo = (x: number, y: number, scale: number, duration = 2) =>
-      Promise.all([
-        animate(camX, x, { duration, ...easeCam }),
-        animate(camY, y, { duration, ...easeCam }),
-        animate(camScale, scale, { duration, ...easeCam }),
-      ]);
-
-    const driveTo = (fromLen: number, toLen: number, duration: number) =>
-      animate(pathLen, [fromLen, toLen], {
-        duration,
-        ease: [0.45, 0.05, 0.35, 1],
-      });
-
-    (async () => {
-      // Scene 1 — Title
-      setStage("intro");
-      await wait(3200);
-      if (cancelled) return;
-
-      // Scene 2 — reveal + slow drift to home
-      setStage("reveal");
-      await flyTo(500, 310, 1, 1.6);
-      if (cancelled) return;
-
-      setStage("zoomHome");
-      await flyTo(WAYPOINTS[0].x, WAYPOINTS[0].y, 2.4, 2.2);
-      if (cancelled) return;
-
-      // Scene 3 — RV appears with a bounce
-      animate(rvOpacity, 1, { duration: 0.6 });
-      setVisibleIndex(0); // home pin visible
-      await wait(1400);
-      if (cancelled) return;
-
-      // Scene 4 — drive segment by segment
-      for (let i = 1; i < WAYPOINTS.length; i++) {
-        if (cancelled) return;
-        const fromLen = segmentLens[i - 1];
-        const toLen = segmentLens[i];
-        const miles = WAYPOINTS[i].milesFromPrev;
-        const duration = Math.min(3.4, Math.max(1.8, miles / 160));
-
-        // Follow-cam: pan toward next waypoint at driving zoom while advancing.
-        rvMoving.set(1);
-        flyTo(
-          (WAYPOINTS[i].x + WAYPOINTS[i - 1].x) / 2,
-          (WAYPOINTS[i].y + WAYPOINTS[i - 1].y) / 2,
-          2.1,
-          duration,
-        );
-        await driveTo(fromLen, toLen, duration);
-        rvMoving.set(0);
-        if (cancelled) return;
-
-        // Arrive — zoom in, drop pin, pause.
-        setStage("arrived");
-        await flyTo(WAYPOINTS[i].x, WAYPOINTS[i].y, 2.8, 1.2);
-        setVisibleIndex(i);
-        await wait(2000);
+  // Playback loop.
+  useEffect(() => {
+    if (!timeline || !isPlaying) return;
+    let raf = 0;
+    let prev = performance.now();
+    const tick = (now: number) => {
+      const dt = (now - prev) / 1000;
+      prev = now;
+      let next = timeRef.current + dt;
+      if (next >= duration) {
+        next = duration;
+        timeRef.current = next;
+        applyAt(next);
+        setTime(next);
+        setIsPlaying(false);
+        if (!completedRef.current) {
+          completedRef.current = true;
+          onComplete?.();
+        }
+        return;
       }
-
-      // Scene 5 — outro overview
-      setStage("outro");
-      await flyTo(500, 310, 1, 2.6);
-      await wait(2200);
-      setStage("done");
-      onComplete?.();
-    })();
-
-    return () => {
-      cancelled = true;
+      timeRef.current = next;
+      applyAt(next);
+      setTime(next);
+      raf = requestAnimationFrame(tick);
     };
-  }, [segmentLens, pathLen, camX, camY, camScale, rvOpacity, rvMoving, onComplete]);
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [isPlaying, timeline, duration, applyAt, onComplete]);
+
+  const handleTogglePlay = useCallback(() => {
+    if (!timeline) return;
+    if (timeRef.current >= duration - 0.001) {
+      timeRef.current = 0;
+      setTime(0);
+      applyAt(0);
+      completedRef.current = false;
+    }
+    setIsPlaying((p) => !p);
+  }, [timeline, duration, applyAt]);
+
+  const handleScrub = useCallback(
+    (v: number) => {
+      if (!timeline) return;
+      setIsPlaying(false);
+      const clamped = Math.max(0, Math.min(duration, v));
+      timeRef.current = clamped;
+      setTime(clamped);
+      applyAt(clamped);
+      completedRef.current = clamped >= duration - 0.001;
+    },
+    [timeline, duration, applyAt],
+  );
+
+  const handleRestart = useCallback(() => {
+    if (!timeline) return;
+    timeRef.current = 0;
+    setTime(0);
+    applyAt(0);
+    completedRef.current = false;
+    setIsPlaying(true);
+  }, [timeline, applyAt]);
 
   // Camera transform string
   const cameraTransform = useTransform([camX, camY, camScale], (vals) => {
     const [x, y, s] = vals as number[];
-    // Center (x, y) in the viewBox and scale around it.
     const tx = VIEW_W / 2 - x * s;
     const ty = VIEW_H / 2 - y * s;
     return `translate(${tx} ${ty}) scale(${s})`;
   });
 
-  // Precomputed cloud positions (deterministic).
   const clouds = useMemo(
     () => [
       { x: 120, y: 90, s: 1, delay: 0 },
@@ -303,7 +469,7 @@ export function RoadTripAnimation({ onComplete }: { onComplete?: () => void } = 
 
       {/* HUD overlays */}
       <AnimatePresence>
-        {stage === "intro" && (
+        {titleVisible && stage === "intro" && (
           <motion.div
             key="intro"
             initial={{ opacity: 0 }}
@@ -349,7 +515,7 @@ export function RoadTripAnimation({ onComplete }: { onComplete?: () => void } = 
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 1.2 }}
-            className="pointer-events-none absolute inset-x-0 bottom-10 flex justify-center"
+            className="pointer-events-none absolute inset-x-0 bottom-24 flex justify-center"
           >
             <div className="rounded-2xl bg-white/85 px-6 py-4 text-center shadow-[0_10px_40px_-10px_rgba(15,23,42,0.25)] backdrop-blur">
               <p className="text-[10px] font-semibold uppercase tracking-[0.4em] text-primary">
@@ -379,7 +545,84 @@ export function RoadTripAnimation({ onComplete }: { onComplete?: () => void } = 
         visibleIndex={visibleIndex}
       />
 
-      {/* Hidden probe path for measurement is the actual pathRef above. */}
+      {/* Playback controls */}
+      {showControls && timeline && (
+        <PlaybackControls
+          time={time}
+          duration={duration}
+          isPlaying={isPlaying}
+          onToggle={handleTogglePlay}
+          onScrub={handleScrub}
+          onRestart={handleRestart}
+        />
+      )}
+    </div>
+  );
+}
+
+function formatTime(sec: number): string {
+  const s = Math.max(0, sec);
+  const m = Math.floor(s / 60);
+  const r = Math.floor(s % 60);
+  return `${m}:${r.toString().padStart(2, "0")}`;
+}
+
+function PlaybackControls({
+  time,
+  duration,
+  isPlaying,
+  onToggle,
+  onScrub,
+  onRestart,
+}: {
+  time: number;
+  duration: number;
+  isPlaying: boolean;
+  onToggle: () => void;
+  onScrub: (v: number) => void;
+  onRestart: () => void;
+}) {
+  return (
+    <div className="pointer-events-auto absolute bottom-6 left-1/2 z-20 flex w-[min(560px,calc(100%-3rem))] -translate-x-1/2 items-center gap-3 rounded-full border border-border/60 bg-white/90 px-4 py-2 shadow-[0_10px_30px_-12px_rgba(15,23,42,0.35)] backdrop-blur">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label={isPlaying ? "Pause" : "Play"}
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[color:var(--deep)] text-white transition hover:opacity-90"
+      >
+        {isPlaying ? <Pause size={14} /> : <Play size={14} className="translate-x-[1px]" />}
+      </button>
+      <button
+        type="button"
+        onClick={onRestart}
+        aria-label="Restart"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border text-[color:var(--deep)] transition hover:bg-slate-100"
+      >
+        <RotateCcw size={13} />
+      </button>
+      <span className="w-10 shrink-0 text-right text-[10px] font-semibold tabular-nums tracking-wider text-[color:var(--deep)]">
+        {formatTime(time)}
+      </span>
+      <input
+        type="range"
+        min={0}
+        max={duration}
+        step={0.05}
+        value={Math.min(time, duration)}
+        onChange={(e) => onScrub(parseFloat(e.target.value))}
+        aria-label="Scrub timeline"
+        className="h-1 w-full flex-1 cursor-pointer appearance-none rounded-full bg-slate-200 accent-[color:var(--primary)]"
+        style={{
+          background: `linear-gradient(to right, var(--primary) 0%, var(--primary) ${
+            duration > 0 ? (time / duration) * 100 : 0
+          }%, rgb(226,232,240) ${
+            duration > 0 ? (time / duration) * 100 : 0
+          }%, rgb(226,232,240) 100%)`,
+        }}
+      />
+      <span className="w-10 shrink-0 text-[10px] font-semibold tabular-nums tracking-wider text-muted-foreground">
+        {formatTime(duration)}
+      </span>
     </div>
   );
 }
