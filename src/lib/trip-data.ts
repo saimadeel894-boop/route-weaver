@@ -1,35 +1,75 @@
+import { CITY_POINTS } from "./us-map-generated";
+
+export type IconKey =
+  | "home"
+  | "boat"
+  | "cave"
+  | "raft"
+  | "guitar"
+  | "bath"
+  | "arch"
+  | "beach";
+
 export type Waypoint = {
   id: string;
   name: string;
   region?: string;
-  /** SVG viewBox coordinates (viewBox 0 0 1000 620). */
+  /** Projected Albers-USA coordinates (viewBox 0 0 975 610). */
   x: number;
   y: number;
-  /** Icon key rendered inside the destination badge. */
-  icon:
-    | "home"
-    | "boat"
-    | "cave"
-    | "raft"
-    | "guitar"
-    | "bath"
-    | "arch"
-    | "beach";
+  icon: IconKey;
   /** Miles from previous stop. `0` for the origin. */
   milesFromPrev: number;
+  /** Preferred label anchor relative to the pin. */
+  labelSide: "left" | "right" | "top" | "bottom";
 };
 
-export const WAYPOINTS: Waypoint[] = [
-  { id: "home", name: "Home", region: "Ohio", x: 672, y: 258, icon: "home", milesFromPrev: 0 },
-  { id: "lake-cumberland", name: "Lake Cumberland", region: "Kentucky", x: 648, y: 308, icon: "boat", milesFromPrev: 230 },
-  { id: "mammoth-cave", name: "Mammoth Cave", region: "Kentucky", x: 615, y: 320, icon: "cave", milesFromPrev: 78 },
-  { id: "new-river", name: "New River", region: "West Virginia", x: 738, y: 272, icon: "raft", milesFromPrev: 400 },
-  { id: "nashville", name: "Nashville", region: "Tennessee", x: 605, y: 348, icon: "guitar", milesFromPrev: 450 },
-  { id: "hot-springs", name: "Hot Springs", region: "Arkansas", x: 488, y: 388, icon: "bath", milesFromPrev: 410 },
-  { id: "st-louis", name: "St. Louis", region: "Missouri", x: 552, y: 292, icon: "arch", milesFromPrev: 410 },
-  { id: "indiana-dunes", name: "Indiana Dunes", region: "Indiana", x: 618, y: 214, icon: "beach", milesFromPrev: 310 },
-  { id: "home-return", name: "Back Home", region: "Ohio", x: 672, y: 258, icon: "home", milesFromPrev: 300 },
-];
+const ICONS: Record<string, IconKey> = {
+  home: "home",
+  "lake-cumberland": "boat",
+  "mammoth-cave": "cave",
+  "new-river": "raft",
+  nashville: "guitar",
+  "hot-springs": "bath",
+  "st-louis": "arch",
+  "indiana-dunes": "beach",
+  "home-return": "home",
+};
+
+const MILES: Record<string, number> = {
+  home: 0,
+  "lake-cumberland": 230,
+  "mammoth-cave": 78,
+  "new-river": 400,
+  nashville: 450,
+  "hot-springs": 410,
+  "st-louis": 410,
+  "indiana-dunes": 310,
+  "home-return": 300,
+};
+
+const LABEL_SIDE: Record<string, Waypoint["labelSide"]> = {
+  home: "right",
+  "lake-cumberland": "right",
+  "mammoth-cave": "left",
+  "new-river": "right",
+  nashville: "left",
+  "hot-springs": "left",
+  "st-louis": "left",
+  "indiana-dunes": "top",
+  "home-return": "right",
+};
+
+export const WAYPOINTS: Waypoint[] = CITY_POINTS.map((c) => ({
+  id: c.id,
+  name: c.name,
+  region: c.region,
+  x: c.x,
+  y: c.y,
+  icon: ICONS[c.id],
+  milesFromPrev: MILES[c.id],
+  labelSide: LABEL_SIDE[c.id],
+}));
 
 /** Build a smooth SVG path through waypoints using a Catmull-Rom → Bezier conversion. */
 export function buildRoutePath(points: { x: number; y: number }[], tension = 0.5): string {
