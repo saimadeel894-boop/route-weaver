@@ -27,6 +27,11 @@ type Stage =
   | "done";
 
 export function RoadTripAnimation() {
+  // no props for now
+  return <RoadTripAnimationInner />;
+}
+
+export function RoadTripAnimationInner({ onComplete }: { onComplete?: () => void } = {}) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const pathRef = useRef<SVGPathElement | null>(null);
 
