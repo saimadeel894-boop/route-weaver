@@ -201,10 +201,13 @@ export function RoadTripAnimation({
   onComplete,
   autoPlay = true,
   showControls = true,
+  chromeless = false,
 }: {
   onComplete?: () => void;
   autoPlay?: boolean;
   showControls?: boolean;
+  /** Hide brand chip + mileage HUD (used for clean MP4 exports). */
+  chromeless?: boolean;
 } = {}) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const pathRef = useRef<SVGPathElement | null>(null);
@@ -570,13 +573,15 @@ export function RoadTripAnimation({
       </AnimatePresence>
 
       {/* Top-left brand chip */}
-      <div className="pointer-events-none absolute left-6 top-6 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.35em] text-muted-foreground">
-        <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-        Summer Road Trip · 2026
-      </div>
+      {!chromeless && (
+        <div className="pointer-events-none absolute left-6 top-6 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.35em] text-muted-foreground">
+          <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+          Summer Road Trip · 2026
+        </div>
+      )}
 
       {/* Bottom-right progress */}
-      {stage !== "intro" && stage !== "reveal" && stage !== "zoomHome" && (
+      {!chromeless && stage !== "intro" && stage !== "reveal" && stage !== "zoomHome" && (
         <ProgressReadout
           segmentLens={segmentLens}
           pathLen={pathLen}

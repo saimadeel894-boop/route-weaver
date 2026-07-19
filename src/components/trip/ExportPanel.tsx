@@ -214,6 +214,7 @@ export function ExportPanel() {
           >
             <RoadTripAnimation
               showControls={false}
+              chromeless
               onComplete={() => {
                 doneRef.current = true;
               }}
