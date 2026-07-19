@@ -14,8 +14,8 @@ import { RV } from "./RV";
 import { Pin } from "./Pin";
 import { DestinationIcon } from "./DestinationIcons";
 
-const VIEW_W = 1000;
-const VIEW_H = 620;
+const VIEW_W = 975;
+const VIEW_H = 610;
 
 type Stage =
   | "intro"
@@ -93,8 +93,8 @@ function sampleStep<T>(kfs: StepKf<T>[], t: number): T {
 }
 
 function buildTimeline(segmentLens: number[]): Timeline {
-  const camX: ContKf[] = [{ t: 0, v: 500 }];
-  const camY: ContKf[] = [{ t: 0, v: 310 }];
+  const camX: ContKf[] = [{ t: 0, v: 487.5 }];
+  const camY: ContKf[] = [{ t: 0, v: 305 }];
   const camS: ContKf[] = [{ t: 0, v: 1 }];
   const path: ContKf[] = [{ t: 0, v: 0 }];
   const rvOp: ContKf[] = [{ t: 0, v: 0 }];
@@ -103,31 +103,54 @@ function buildTimeline(segmentLens: number[]): Timeline {
   const moving: StepKf<0 | 1>[] = [{ t: 0, v: 0 }];
   const title: StepKf<boolean>[] = [{ t: 0, v: true }];
 
-  const add = (kfs: ContKf[], t: number, v: number, ease?: EaseFn) => {
-    if (ease) kfs[kfs.length - 1].ease = ease;
-    kfs.push({ t, v });
+  // Insert a "hold at current value" keyframe at time t so the next tween
+  // starts from there instead of interpolating from the previous change.
+  const hold = (kfs: ContKf[], t: number) => {
+    const last = kfs[kfs.length - 1];
+    if (last.t < t - 1e-6) kfs.push({ t, v: last.v });
+  };
+  const snapshot = (t: number) => {
+    hold(camX, t);
+    hold(camY, t);
+    hold(camS, t);
+    hold(path, t);
+    hold(rvOp, t);
+  };
+  // Tween one channel from its current value to `v` over [start, end].
+  const tween = (
+    kfs: ContKf[],
+    start: number,
+    end: number,
+    v: number,
+    ease: EaseFn,
+  ) => {
+    hold(kfs, start);
+    kfs[kfs.length - 1].ease = ease;
+    kfs.push({ t: end, v });
   };
 
   let t = 0;
 
   // Scene 1 — intro title (3.2s)
   t += 3.2;
+  snapshot(t);
   stage.push({ t, v: "reveal" });
   title.push({ t, v: false });
 
   // Scene 2 — reveal drift (1.6s, camera stays)
   t += 1.6;
+  snapshot(t);
   stage.push({ t, v: "zoomHome" });
 
   // Scene 3 — zoom to home (2.2s)
   const home = WAYPOINTS[0];
-  add(camX, t + 2.2, home.x, easeCam);
-  add(camY, t + 2.2, home.y, easeCam);
-  add(camS, t + 2.2, 2.4, easeCam);
+  tween(camX, t, t + 2.2, home.x, easeCam);
+  tween(camY, t, t + 2.2, home.y, easeCam);
+  tween(camS, t, t + 2.2, 2.4, easeCam);
   t += 2.2;
 
   // Scene 4 — RV bounce in (fade 0.6s, then hold 0.8s)
-  add(rvOp, t + 0.6, 1, easeOut);
+  tween(rvOp, t, t + 0.6, 1, easeOut);
   t += 0.6;
   visible.push({ t, v: 0 });
   t += 0.8;
@@ -140,30 +163,33 @@ function buildTimeline(segmentLens: number[]): Timeline {
     const midX = (WAYPOINTS[i].x + WAYPOINTS[i - 1].x) / 2;
     const midY = (WAYPOINTS[i].y + WAYPOINTS[i - 1].y) / 2;
 
+    snapshot(t);
     moving.push({ t, v: 1 });
     stage.push({ t, v: "driving" });
-    add(camX, t + driveDur, midX, easeCam);
-    add(camY, t + driveDur, midY, easeCam);
-    add(camS, t + driveDur, 2.1, easeCam);
-    add(path, t + driveDur, toLen, easeDrive);
+    tween(camX, t, t + driveDur, midX, easeCam);
+    tween(camY, t, t + driveDur, midY, easeCam);
+    tween(camS, t, t + driveDur, 2.1, easeCam);
+    tween(path, t, t + driveDur, toLen, easeDrive);
     t += driveDur;
     moving.push({ t, v: 0 });
 
     // Arrive: 1.2s zoom + drop pin, then 2s pause
+    snapshot(t);
     stage.push({ t, v: "arrived" });
-    add(camX, t + 1.2, WAYPOINTS[i].x, easeCam);
-    add(camY, t + 1.2, WAYPOINTS[i].y, easeCam);
-    add(camS, t + 1.2, 2.8, easeCam);
+    tween(camX, t, t + 1.2, WAYPOINTS[i].x, easeCam);
+    tween(camY, t, t + 1.2, WAYPOINTS[i].y, easeCam);
+    tween(camS, t, t + 1.2, 2.8, easeCam);
     t += 1.2;
     visible.push({ t, v: i });
     t += 2.0;
   }
 
   // Scene 6 — outro overview (2.6s + 2.2s hold)
+  snapshot(t);
   stage.push({ t, v: "outro" });
-  add(camX, t + 2.6, 500, easeCam);
-  add(camY, t + 2.6, 310, easeCam);
-  add(camS, t + 2.6, 1, easeCam);
+  tween(camX, t, t + 2.6, 487.5, easeCam);
+  tween(camY, t, t + 2.6, 305, easeCam);
+  tween(camS, t, t + 2.6, 1, easeCam);
   t += 2.6;
   t += 2.2;
   stage.push({ t, v: "done" });
@@ -188,11 +214,12 @@ export function RoadTripAnimation({
 
   // Live motion values driven from the deterministic timeline.
   const pathLen = useMotionValue(0);
-  const camX = useMotionValue(500);
-  const camY = useMotionValue(310);
+  const camX = useMotionValue(487.5);
+  const camY = useMotionValue(305);
   const camScale = useMotionValue(1);
   const rvOpacity = useMotionValue(0);
   const rvMoving = useMotionValue(0);
+  const dashOffset = useMotionValue(1);
 
   const [stage, setStage] = useState<Stage>("intro");
   const [visibleIndex, setVisibleIndex] = useState<number>(-1);
@@ -200,8 +227,6 @@ export function RoadTripAnimation({
   const [time, setTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [rvPos, setRvPos] = useState({ x: WAYPOINTS[0].x, y: WAYPOINTS[0].y, angle: 0 });
-
-  const dashOffset = useTransform(pathLen, (v) => Math.max(totalLen - v, 0));
 
   // ── measure the path once mounted ──────────────────────────────────────────
   useEffect(() => {
@@ -261,7 +286,9 @@ export function RoadTripAnimation({
       camX.set(sampleCont(timeline.camX, t));
       camY.set(sampleCont(timeline.camY, t));
       camScale.set(sampleCont(timeline.camS, t));
-      pathLen.set(sampleCont(timeline.path, t));
+      const pl = sampleCont(timeline.path, t);
+      pathLen.set(pl);
+      dashOffset.set(Math.max(totalLen - pl, 0));
       rvOpacity.set(sampleCont(timeline.rvOp, t));
       rvMoving.set(sampleStep(timeline.moving, t));
       const nextStage = sampleStep(timeline.stage, t);
@@ -271,7 +298,7 @@ export function RoadTripAnimation({
       const tv = sampleStep(timeline.title, t);
       setTitleVisible((prev) => (prev === tv ? prev : tv));
     },
-    [timeline, camX, camY, camScale, pathLen, rvOpacity, rvMoving],
+    [timeline, totalLen, camX, camY, camScale, pathLen, dashOffset, rvOpacity, rvMoving],
   );
 
   // Initial snap once timeline is available.
@@ -358,10 +385,10 @@ export function RoadTripAnimation({
   const clouds = useMemo(
     () => [
       { x: 120, y: 90, s: 1, delay: 0 },
-      { x: 780, y: 60, s: 1.4, delay: 4 },
+      { x: 760, y: 60, s: 1.4, delay: 4 },
       { x: 420, y: 40, s: 0.8, delay: 8 },
-      { x: 640, y: 500, s: 1.1, delay: 2 },
-      { x: 220, y: 520, s: 0.9, delay: 6 },
+      { x: 640, y: 520, s: 1.1, delay: 2 },
+      { x: 220, y: 540, s: 0.9, delay: 6 },
     ],
     [],
   );
@@ -491,18 +518,25 @@ export function RoadTripAnimation({
                 initial={{ y: 24, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.35, duration: 0.9 }}
-                className="mt-4 text-5xl font-extrabold leading-[0.95] tracking-tight text-[color:var(--deep)] sm:text-7xl md:text-8xl"
+                className="mt-4 leading-[0.9] tracking-tight text-[color:var(--deep)]"
+                style={{ fontFamily: "var(--font-display)", fontWeight: 400 }}
               >
-                Summer Road Trip
-                <span className="ml-3 text-primary">2026</span>
+                <span className="block text-5xl sm:text-7xl md:text-[7.5rem]">
+                  Summer Road Trip
+                </span>
+                <span
+                  className="mt-2 block text-4xl italic text-primary sm:text-6xl md:text-8xl"
+                >
+                  2026
+                </span>
               </motion.h1>
               <motion.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.7, duration: 0.8 }}
-                className="mt-6 text-sm text-muted-foreground sm:text-base"
+                className="mt-6 text-xs font-semibold uppercase tracking-[0.4em] text-muted-foreground sm:text-sm"
               >
-                {WAYPOINTS.length - 1} stops · {TOTAL_MILES.toLocaleString()} miles · one RV
+                {WAYPOINTS.length - 1} Stops · {TOTAL_MILES.toLocaleString()} Miles · One RV
               </motion.p>
             </div>
           </motion.div>
@@ -515,17 +549,20 @@ export function RoadTripAnimation({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 1.2 }}
-            className="pointer-events-none absolute inset-x-0 bottom-24 flex justify-center"
+            className="pointer-events-none absolute inset-x-0 top-8 flex justify-center"
           >
-            <div className="rounded-2xl bg-white/85 px-6 py-4 text-center shadow-[0_10px_40px_-10px_rgba(15,23,42,0.25)] backdrop-blur">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.4em] text-primary">
+            <div className="rounded-2xl border border-border/60 bg-white/90 px-7 py-4 text-center shadow-[0_18px_50px_-18px_rgba(15,23,42,0.35)] backdrop-blur">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.5em] text-primary">
                 Journey Complete
               </p>
-              <p className="mt-1 text-2xl font-extrabold text-[color:var(--deep)]">
+              <p
+                className="mt-1 text-3xl italic text-[color:var(--deep)]"
+                style={{ fontFamily: "var(--font-display)" }}
+              >
                 Summer Road Trip 2026
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {TOTAL_MILES.toLocaleString()} miles · {WAYPOINTS.length - 1} stops
+              <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.35em] text-muted-foreground">
+                {TOTAL_MILES.toLocaleString()} Miles · {WAYPOINTS.length - 1} Stops
               </p>
             </div>
           </motion.div>
@@ -539,11 +576,13 @@ export function RoadTripAnimation({
       </div>
 
       {/* Bottom-right progress */}
-      <ProgressReadout
-        segmentLens={segmentLens}
-        pathLen={pathLen}
-        visibleIndex={visibleIndex}
-      />
+      {stage !== "intro" && stage !== "reveal" && stage !== "zoomHome" && (
+        <ProgressReadout
+          segmentLens={segmentLens}
+          pathLen={pathLen}
+          visibleIndex={visibleIndex}
+        />
+      )}
 
       {/* Playback controls */}
       {showControls && timeline && (
