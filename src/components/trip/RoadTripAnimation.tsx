@@ -26,7 +26,7 @@ type Stage =
   | "outro"
   | "done";
 
-export function RoadTripAnimation() {
+export function RoadTripAnimation({ onComplete }: { onComplete?: () => void } = {}) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const pathRef = useRef<SVGPathElement | null>(null);
 
@@ -171,12 +171,13 @@ export function RoadTripAnimation() {
       await flyTo(500, 310, 1, 2.6);
       await wait(2200);
       setStage("done");
+      onComplete?.();
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [segmentLens, pathLen, camX, camY, camScale, rvOpacity, rvMoving]);
+  }, [segmentLens, pathLen, camX, camY, camScale, rvOpacity, rvMoving, onComplete]);
 
   // Camera transform string
   const cameraTransform = useTransform([camX, camY, camScale], (vals) => {
