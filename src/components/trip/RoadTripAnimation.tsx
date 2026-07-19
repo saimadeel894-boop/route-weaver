@@ -103,31 +103,54 @@ function buildTimeline(segmentLens: number[]): Timeline {
   const moving: StepKf<0 | 1>[] = [{ t: 0, v: 0 }];
   const title: StepKf<boolean>[] = [{ t: 0, v: true }];
 
-  const add = (kfs: ContKf[], t: number, v: number, ease?: EaseFn) => {
-    if (ease) kfs[kfs.length - 1].ease = ease;
-    kfs.push({ t, v });
+  // Insert a "hold at current value" keyframe at time t so the next tween
+  // starts from there instead of interpolating from the previous change.
+  const hold = (kfs: ContKf[], t: number) => {
+    const last = kfs[kfs.length - 1];
+    if (last.t < t - 1e-6) kfs.push({ t, v: last.v });
+  };
+  const snapshot = (t: number) => {
+    hold(camX, t);
+    hold(camY, t);
+    hold(camS, t);
+    hold(path, t);
+    hold(rvOp, t);
+  };
+  // Tween one channel from its current value to `v` over [start, end].
+  const tween = (
+    kfs: ContKf[],
+    start: number,
+    end: number,
+    v: number,
+    ease: EaseFn,
+  ) => {
+    hold(kfs, start);
+    kfs[kfs.length - 1].ease = ease;
+    kfs.push({ t: end, v });
   };
 
   let t = 0;
 
   // Scene 1 — intro title (3.2s)
   t += 3.2;
+  snapshot(t);
   stage.push({ t, v: "reveal" });
   title.push({ t, v: false });
 
   // Scene 2 — reveal drift (1.6s, camera stays)
   t += 1.6;
+  snapshot(t);
   stage.push({ t, v: "zoomHome" });
 
   // Scene 3 — zoom to home (2.2s)
   const home = WAYPOINTS[0];
-  add(camX, t + 2.2, home.x, easeCam);
-  add(camY, t + 2.2, home.y, easeCam);
-  add(camS, t + 2.2, 2.4, easeCam);
+  tween(camX, t, t + 2.2, home.x, easeCam);
+  tween(camY, t, t + 2.2, home.y, easeCam);
+  tween(camS, t, t + 2.2, 2.4, easeCam);
   t += 2.2;
 
   // Scene 4 — RV bounce in (fade 0.6s, then hold 0.8s)
-  add(rvOp, t + 0.6, 1, easeOut);
+  tween(rvOp, t, t + 0.6, 1, easeOut);
   t += 0.6;
   visible.push({ t, v: 0 });
   t += 0.8;
@@ -140,30 +163,33 @@ function buildTimeline(segmentLens: number[]): Timeline {
     const midX = (WAYPOINTS[i].x + WAYPOINTS[i - 1].x) / 2;
     const midY = (WAYPOINTS[i].y + WAYPOINTS[i - 1].y) / 2;
 
+    snapshot(t);
     moving.push({ t, v: 1 });
     stage.push({ t, v: "driving" });
-    add(camX, t + driveDur, midX, easeCam);
-    add(camY, t + driveDur, midY, easeCam);
-    add(camS, t + driveDur, 2.1, easeCam);
-    add(path, t + driveDur, toLen, easeDrive);
+    tween(camX, t, t + driveDur, midX, easeCam);
+    tween(camY, t, t + driveDur, midY, easeCam);
+    tween(camS, t, t + driveDur, 2.1, easeCam);
+    tween(path, t, t + driveDur, toLen, easeDrive);
     t += driveDur;
     moving.push({ t, v: 0 });
 
     // Arrive: 1.2s zoom + drop pin, then 2s pause
+    snapshot(t);
     stage.push({ t, v: "arrived" });
-    add(camX, t + 1.2, WAYPOINTS[i].x, easeCam);
-    add(camY, t + 1.2, WAYPOINTS[i].y, easeCam);
-    add(camS, t + 1.2, 2.8, easeCam);
+    tween(camX, t, t + 1.2, WAYPOINTS[i].x, easeCam);
+    tween(camY, t, t + 1.2, WAYPOINTS[i].y, easeCam);
+    tween(camS, t, t + 1.2, 2.8, easeCam);
     t += 1.2;
     visible.push({ t, v: i });
     t += 2.0;
   }
 
   // Scene 6 — outro overview (2.6s + 2.2s hold)
+  snapshot(t);
   stage.push({ t, v: "outro" });
-  add(camX, t + 2.6, 487.5, easeCam);
-  add(camY, t + 2.6, 305, easeCam);
-  add(camS, t + 2.6, 1, easeCam);
+  tween(camX, t, t + 2.6, 487.5, easeCam);
+  tween(camY, t, t + 2.6, 305, easeCam);
+  tween(camS, t, t + 2.6, 1, easeCam);
   t += 2.6;
   t += 2.2;
   stage.push({ t, v: "done" });
