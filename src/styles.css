@@ -81,11 +81,13 @@
   --accent-foreground: oklch(0.2 0.05 260);
   --deep: oklch(0.24 0.08 265);          /* deep navy #0D2B45 */
   --map-land: oklch(0.955 0.008 240);
-  --map-land-stroke: oklch(0.9 0.012 245);
+  --map-land-stroke: oklch(0.88 0.014 245);
+  --map-nation-stroke: oklch(0.74 0.03 250);
   --map-water: oklch(0.965 0.014 235);
   --route: oklch(0.55 0.19 258);
   --route-glow: oklch(0.68 0.17 258 / 0.35);
   --pin: oklch(0.55 0.19 258);
+  --pin-deep: oklch(0.36 0.14 262);
   --cloud: oklch(1 0 0 / 0.85);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.984 0.003 247.858);
@@ -107,6 +109,7 @@
   --sidebar-ring: oklch(0.704 0.04 256.788);
   --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Instrument Serif", ui-serif, Georgia, "Times New Roman", serif;
 }
 
 .dark {

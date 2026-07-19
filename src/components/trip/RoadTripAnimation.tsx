@@ -14,8 +14,8 @@ import { RV } from "./RV";
 import { Pin } from "./Pin";
 import { DestinationIcon } from "./DestinationIcons";
 
-const VIEW_W = 1000;
-const VIEW_H = 620;
+const VIEW_W = 975;
+const VIEW_H = 610;
 
 type Stage =
   | "intro"
@@ -93,8 +93,8 @@ function sampleStep<T>(kfs: StepKf<T>[], t: number): T {
 }
 
 function buildTimeline(segmentLens: number[]): Timeline {
-  const camX: ContKf[] = [{ t: 0, v: 500 }];
-  const camY: ContKf[] = [{ t: 0, v: 310 }];
+  const camX: ContKf[] = [{ t: 0, v: 487.5 }];
+  const camY: ContKf[] = [{ t: 0, v: 305 }];
   const camS: ContKf[] = [{ t: 0, v: 1 }];
   const path: ContKf[] = [{ t: 0, v: 0 }];
   const rvOp: ContKf[] = [{ t: 0, v: 0 }];
@@ -161,8 +161,8 @@ function buildTimeline(segmentLens: number[]): Timeline {
 
   // Scene 6 — outro overview (2.6s + 2.2s hold)
   stage.push({ t, v: "outro" });
-  add(camX, t + 2.6, 500, easeCam);
-  add(camY, t + 2.6, 310, easeCam);
+  add(camX, t + 2.6, 487.5, easeCam);
+  add(camY, t + 2.6, 305, easeCam);
   add(camS, t + 2.6, 1, easeCam);
   t += 2.6;
   t += 2.2;
@@ -188,8 +188,8 @@ export function RoadTripAnimation({
 
   // Live motion values driven from the deterministic timeline.
   const pathLen = useMotionValue(0);
-  const camX = useMotionValue(500);
-  const camY = useMotionValue(310);
+  const camX = useMotionValue(487.5);
+  const camY = useMotionValue(305);
   const camScale = useMotionValue(1);
   const rvOpacity = useMotionValue(0);
   const rvMoving = useMotionValue(0);
@@ -358,10 +358,10 @@ export function RoadTripAnimation({
   const clouds = useMemo(
     () => [
       { x: 120, y: 90, s: 1, delay: 0 },
-      { x: 780, y: 60, s: 1.4, delay: 4 },
+      { x: 760, y: 60, s: 1.4, delay: 4 },
       { x: 420, y: 40, s: 0.8, delay: 8 },
-      { x: 640, y: 500, s: 1.1, delay: 2 },
-      { x: 220, y: 520, s: 0.9, delay: 6 },
+      { x: 640, y: 520, s: 1.1, delay: 2 },
+      { x: 220, y: 540, s: 0.9, delay: 6 },
     ],
     [],
   );
