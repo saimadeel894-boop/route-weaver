@@ -4,7 +4,6 @@ import {
   motion,
   useMotionValue,
   useMotionValueEvent,
-  useTransform,
 } from "framer-motion";
 import { Pause, Play, RotateCcw } from "lucide-react";
 
