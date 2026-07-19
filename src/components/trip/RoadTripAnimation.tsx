@@ -193,6 +193,7 @@ export function RoadTripAnimation({
   const camScale = useMotionValue(1);
   const rvOpacity = useMotionValue(0);
   const rvMoving = useMotionValue(0);
+  const dashOffset = useMotionValue(1);
 
   const [stage, setStage] = useState<Stage>("intro");
   const [visibleIndex, setVisibleIndex] = useState<number>(-1);
@@ -200,8 +201,6 @@ export function RoadTripAnimation({
   const [time, setTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [rvPos, setRvPos] = useState({ x: WAYPOINTS[0].x, y: WAYPOINTS[0].y, angle: 0 });
-
-  const dashOffset = useTransform(pathLen, (v) => Math.max(totalLen - v, 0));
 
   // ── measure the path once mounted ──────────────────────────────────────────
   useEffect(() => {
@@ -261,7 +260,9 @@ export function RoadTripAnimation({
       camX.set(sampleCont(timeline.camX, t));
       camY.set(sampleCont(timeline.camY, t));
       camScale.set(sampleCont(timeline.camS, t));
-      pathLen.set(sampleCont(timeline.path, t));
+      const pl = sampleCont(timeline.path, t);
+      pathLen.set(pl);
+      dashOffset.set(Math.max(totalLen - pl, 0));
       rvOpacity.set(sampleCont(timeline.rvOp, t));
       rvMoving.set(sampleStep(timeline.moving, t));
       const nextStage = sampleStep(timeline.stage, t);
@@ -271,7 +272,7 @@ export function RoadTripAnimation({
       const tv = sampleStep(timeline.title, t);
       setTitleVisible((prev) => (prev === tv ? prev : tv));
     },
-    [timeline, camX, camY, camScale, pathLen, rvOpacity, rvMoving],
+    [timeline, totalLen, camX, camY, camScale, pathLen, dashOffset, rvOpacity, rvMoving],
   );
 
   // Initial snap once timeline is available.
