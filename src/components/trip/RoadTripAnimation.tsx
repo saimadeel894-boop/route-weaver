@@ -171,6 +171,7 @@ export function RoadTripAnimation({ onComplete }: { onComplete?: () => void } = 
       await flyTo(500, 310, 1, 2.6);
       await wait(2200);
       setStage("done");
+      onComplete?.();
     })();
 
     return () => {
