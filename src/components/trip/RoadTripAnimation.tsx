@@ -576,11 +576,13 @@ export function RoadTripAnimation({
       </div>
 
       {/* Bottom-right progress */}
-      <ProgressReadout
-        segmentLens={segmentLens}
-        pathLen={pathLen}
-        visibleIndex={visibleIndex}
-      />
+      {stage !== "intro" && stage !== "reveal" && stage !== "zoomHome" && (
+        <ProgressReadout
+          segmentLens={segmentLens}
+          pathLen={pathLen}
+          visibleIndex={visibleIndex}
+        />
+      )}
 
       {/* Playback controls */}
       {showControls && timeline && (
