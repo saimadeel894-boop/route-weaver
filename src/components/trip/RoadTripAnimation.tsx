@@ -177,7 +177,7 @@ export function RoadTripAnimation({ onComplete }: { onComplete?: () => void } = 
     return () => {
       cancelled = true;
     };
-  }, [segmentLens, pathLen, camX, camY, camScale, rvOpacity, rvMoving]);
+  }, [segmentLens, pathLen, camX, camY, camScale, rvOpacity, rvMoving, onComplete]);
 
   // Camera transform string
   const cameraTransform = useTransform([camX, camY, camScale], (vals) => {
