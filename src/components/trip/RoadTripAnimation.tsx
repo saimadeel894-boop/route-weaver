@@ -483,15 +483,21 @@ export function RoadTripAnimation({
             }}
           />
 
-          {/* Waypoint pins — only those already reached */}
-          {WAYPOINTS.map((w, i) => (
-            <Pin
-              key={`${w.id}-${i}`}
-              waypoint={w}
-              visible={i <= visibleIndex && stage !== "outro" && stage !== "done"}
-              compact={false}
-            />
-          ))}
+          {/* Waypoint pins — full detail only for the current stop; earlier
+              stops collapse to compact markers so labels never overlap. */}
+          {WAYPOINTS.map((w, i) => {
+            const reached = i <= visibleIndex && stage !== "outro" && stage !== "done";
+            const isActive = i === visibleIndex && stage !== "outro" && stage !== "done";
+            if (!reached) return null;
+            return (
+              <Pin
+                key={`${w.id}-${i}`}
+                waypoint={w}
+                visible
+                compact={!isActive}
+              />
+            );
+          })}
 
           {/* Compact pins for outro summary */}
           {(stage === "outro" || stage === "done") &&
