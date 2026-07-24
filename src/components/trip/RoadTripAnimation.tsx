@@ -720,12 +720,10 @@ function PlaybackControls({
 function ProgressReadout({
   segmentLens,
   pathLen,
-  visibleIndex,
   stage,
 }: {
   segmentLens: number[];
   pathLen: ReturnType<typeof useMotionValue<number>>;
-  visibleIndex: number;
   stage: Stage;
 }) {
   const [miles, setMiles] = useState(0);
@@ -736,26 +734,21 @@ function ProgressReadout({
     setMiles(Math.round(ratio * TOTAL_MILES));
   });
 
-  const nextIdx = Math.min(visibleIndex + 1, WAYPOINTS.length - 1);
-  const next = WAYPOINTS[nextIdx];
   const complete = stage === "done";
   const fmt = (n: number) => n.toLocaleString("en-US");
 
   return (
-    <div className="pointer-events-none absolute bottom-6 right-6 flex flex-col items-end gap-2">
-      <div className="min-w-[220px] rounded-full bg-white/90 px-5 py-2.5 text-right text-[11px] font-semibold uppercase tracking-[0.28em] tabular-nums text-[color:var(--deep)] shadow-[0_6px_20px_-8px_rgba(15,23,42,0.3)] backdrop-blur">
-        {complete
-          ? `${fmt(TOTAL_MILES)} Miles`
-          : `${fmt(miles)} of ${fmt(TOTAL_MILES)} Miles`}
+    <div className="pointer-events-none absolute right-8 top-8 z-10">
+      <div className="flex flex-col items-end gap-1 rounded-2xl border border-border/60 bg-white/95 px-5 py-3 text-right shadow-[0_10px_30px_-12px_rgba(15,23,42,0.35)] backdrop-blur">
+        <p className="text-[9px] font-semibold uppercase tracking-[0.4em] text-muted-foreground">
+          {complete ? "Total Distance" : "Mileage"}
+        </p>
+        <p className="text-sm font-bold uppercase tracking-[0.22em] tabular-nums text-[color:var(--deep)]">
+          {complete
+            ? `${fmt(TOTAL_MILES)} Miles`
+            : `${fmt(miles)} of ${fmt(TOTAL_MILES)} Miles`}
+        </p>
       </div>
-      {!complete && visibleIndex >= 0 && visibleIndex < WAYPOINTS.length - 1 && (
-        <div className="rounded-2xl bg-white/85 px-4 py-3 text-right shadow-[0_10px_30px_-12px_rgba(15,23,42,0.25)] backdrop-blur">
-          <p className="text-[9px] font-semibold uppercase tracking-[0.3em] text-muted-foreground">
-            Next Stop
-          </p>
-          <p className="text-sm font-bold text-[color:var(--deep)]">{next.name}</p>
-        </div>
-      )}
     </div>
   );
 }
