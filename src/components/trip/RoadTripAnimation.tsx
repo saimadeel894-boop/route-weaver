@@ -630,7 +630,6 @@ export function RoadTripAnimation({
         <ProgressReadout
           segmentLens={segmentLens}
           pathLen={pathLen}
-          visibleIndex={visibleIndex}
           stage={stage}
         />
       )}
