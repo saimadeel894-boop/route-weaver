@@ -447,20 +447,34 @@ export function RoadTripAnimation({
             d={ROUTE_PATH}
             fill="none"
             stroke="var(--route-glow)"
-            strokeWidth={7}
+            strokeWidth={11}
             strokeLinecap="round"
             strokeLinejoin="round"
             style={{
               strokeDasharray: totalLen || 1,
               strokeDashoffset: totalLen || 1,
+              opacity: 0.55,
             }}
           />
           <motion.path
             ref={pathRef}
             d={ROUTE_PATH}
             fill="none"
+            stroke="#ffffff"
+            strokeWidth={7.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{
+              strokeDasharray: totalLen || 1,
+              strokeDashoffset: dashOffset,
+              opacity: 0.85,
+            }}
+          />
+          <motion.path
+            d={ROUTE_PATH}
+            fill="none"
             stroke="var(--route)"
-            strokeWidth={3.5}
+            strokeWidth={5.5}
             strokeLinecap="round"
             strokeLinejoin="round"
             style={{
