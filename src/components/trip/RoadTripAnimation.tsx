@@ -572,22 +572,40 @@ export function RoadTripAnimation({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 1.2 }}
-            className="pointer-events-none absolute inset-x-0 top-8 flex justify-center"
+            transition={{ duration: 1.2, ease: [0.65, 0, 0.35, 1] }}
+            className="pointer-events-none absolute inset-0 flex items-center justify-center"
           >
-            <div className="rounded-2xl border border-border/60 bg-white/90 px-7 py-4 text-center shadow-[0_18px_50px_-18px_rgba(15,23,42,0.35)] backdrop-blur">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.5em] text-primary">
-                Journey Complete
-              </p>
-              <p
-                className="mt-1 text-3xl italic text-[color:var(--deep)]"
-                style={{ fontFamily: "var(--font-display)" }}
+            <div className="text-center">
+              <motion.p
+                initial={{ opacity: 0, letterSpacing: "0.2em" }}
+                animate={{ opacity: 1, letterSpacing: "0.5em" }}
+                transition={{ duration: 1.1, ease: [0.65, 0, 0.35, 1] }}
+                className="text-xs font-semibold uppercase tracking-[0.5em] text-primary"
               >
-                Summer Road Trip 2026
-              </p>
-              <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.35em] text-muted-foreground">
+                Journey Complete
+              </motion.p>
+              <motion.h2
+                initial={{ y: 18, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.25, duration: 1.1, ease: [0.65, 0, 0.35, 1] }}
+                className="mt-4 leading-[0.9] tracking-tight text-[color:var(--deep)]"
+                style={{ fontFamily: "var(--font-display)", fontWeight: 400 }}
+              >
+                <span className="block text-5xl sm:text-7xl md:text-[6.5rem]">
+                  Summer Road Trip
+                </span>
+                <span className="mt-2 block text-4xl italic text-primary sm:text-6xl md:text-7xl">
+                  2026
+                </span>
+              </motion.h2>
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.6, duration: 0.9 }}
+                className="mt-6 text-[11px] font-semibold uppercase tracking-[0.4em] text-muted-foreground sm:text-sm"
+              >
                 {TOTAL_MILES.toLocaleString()} Miles · {WAYPOINTS.length - 1} Stops
-              </p>
+              </motion.p>
             </div>
           </motion.div>
         )}
