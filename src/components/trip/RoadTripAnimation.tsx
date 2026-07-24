@@ -16,6 +16,8 @@ import { DestinationIcon } from "./DestinationIcons";
 
 const VIEW_W = 975;
 const VIEW_H = 610;
+// Base zoom so the map fills ~85-90% of the frame instead of the full viewBox.
+const BASE_SCALE = 1.15;
 
 type Stage =
   | "intro"
@@ -95,7 +97,7 @@ function sampleStep<T>(kfs: StepKf<T>[], t: number): T {
 function buildTimeline(segmentLens: number[]): Timeline {
   const camX: ContKf[] = [{ t: 0, v: 487.5 }];
   const camY: ContKf[] = [{ t: 0, v: 305 }];
-  const camS: ContKf[] = [{ t: 0, v: 1 }];
+  const camS: ContKf[] = [{ t: 0, v: BASE_SCALE }];
   const path: ContKf[] = [{ t: 0, v: 0 }];
   const rvOp: ContKf[] = [{ t: 0, v: 0 }];
   const stage: StepKf<Stage>[] = [{ t: 0, v: "intro" }];
@@ -159,7 +161,8 @@ function buildTimeline(segmentLens: number[]): Timeline {
   for (let i = 1; i < WAYPOINTS.length; i++) {
     const toLen = segmentLens[i];
     const miles = WAYPOINTS[i].milesFromPrev;
-    const driveDur = Math.min(3.4, Math.max(1.8, miles / 160));
+    // Consistent 1.5-2s drive-to-zoom transitions per client spec.
+    const driveDur = 1.8;
     const midX = (WAYPOINTS[i].x + WAYPOINTS[i - 1].x) / 2;
     const midY = (WAYPOINTS[i].y + WAYPOINTS[i - 1].y) / 2;
 
@@ -173,15 +176,17 @@ function buildTimeline(segmentLens: number[]): Timeline {
     t += driveDur;
     moving.push({ t, v: 0 });
 
-    // Arrive: 1.2s zoom + drop pin, then 2s pause
+    // Arrive: 1.6s cinematic zoom, settle, then reveal label + icon.
     snapshot(t);
     stage.push({ t, v: "arrived" });
-    tween(camX, t, t + 1.2, WAYPOINTS[i].x, easeCam);
-    tween(camY, t, t + 1.2, WAYPOINTS[i].y, easeCam);
-    tween(camS, t, t + 1.2, 2.8, easeCam);
-    t += 1.2;
+    tween(camX, t, t + 1.6, WAYPOINTS[i].x, easeCam);
+    tween(camY, t, t + 1.6, WAYPOINTS[i].y, easeCam);
+    tween(camS, t, t + 1.6, 2.8, easeCam);
+    t += 1.6;
+    // Camera settles for a beat before the label + icon appear.
+    t += 0.35;
     visible.push({ t, v: i });
-    t += 2.0;
+    t += 1.9;
   }
 
   // Scene 6 — outro overview (2.6s + 2.2s hold)
@@ -189,10 +194,12 @@ function buildTimeline(segmentLens: number[]): Timeline {
   stage.push({ t, v: "outro" });
   tween(camX, t, t + 2.6, 487.5, easeCam);
   tween(camY, t, t + 2.6, 305, easeCam);
-  tween(camS, t, t + 2.6, 1, easeCam);
+  tween(camS, t, t + 2.6, BASE_SCALE, easeCam);
   t += 2.6;
-  t += 2.2;
+  t += 2.6;
   stage.push({ t, v: "done" });
+  // Final fade-out beat.
+  t += 0.8;
 
   return { duration: t, camX, camY, camS, path, rvOp, stage, visible, moving, title };
 }
@@ -219,7 +226,7 @@ export function RoadTripAnimation({
   const pathLen = useMotionValue(0);
   const camX = useMotionValue(487.5);
   const camY = useMotionValue(305);
-  const camScale = useMotionValue(1);
+  const camScale = useMotionValue(BASE_SCALE);
   const rvOpacity = useMotionValue(0);
   const rvMoving = useMotionValue(0);
   const dashOffset = useMotionValue(1);
@@ -440,20 +447,34 @@ export function RoadTripAnimation({
             d={ROUTE_PATH}
             fill="none"
             stroke="var(--route-glow)"
-            strokeWidth={7}
+            strokeWidth={11}
             strokeLinecap="round"
             strokeLinejoin="round"
             style={{
               strokeDasharray: totalLen || 1,
               strokeDashoffset: totalLen || 1,
+              opacity: 0.55,
             }}
           />
           <motion.path
             ref={pathRef}
             d={ROUTE_PATH}
             fill="none"
+            stroke="#ffffff"
+            strokeWidth={7.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{
+              strokeDasharray: totalLen || 1,
+              strokeDashoffset: dashOffset,
+              opacity: 0.85,
+            }}
+          />
+          <motion.path
+            d={ROUTE_PATH}
+            fill="none"
             stroke="var(--route)"
-            strokeWidth={3.5}
+            strokeWidth={5.5}
             strokeLinecap="round"
             strokeLinejoin="round"
             style={{
@@ -551,22 +572,40 @@ export function RoadTripAnimation({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 1.2 }}
-            className="pointer-events-none absolute inset-x-0 top-8 flex justify-center"
+            transition={{ duration: 1.2, ease: [0.65, 0, 0.35, 1] }}
+            className="pointer-events-none absolute inset-0 flex items-center justify-center"
           >
-            <div className="rounded-2xl border border-border/60 bg-white/90 px-7 py-4 text-center shadow-[0_18px_50px_-18px_rgba(15,23,42,0.35)] backdrop-blur">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.5em] text-primary">
-                Journey Complete
-              </p>
-              <p
-                className="mt-1 text-3xl italic text-[color:var(--deep)]"
-                style={{ fontFamily: "var(--font-display)" }}
+            <div className="text-center">
+              <motion.p
+                initial={{ opacity: 0, letterSpacing: "0.2em" }}
+                animate={{ opacity: 1, letterSpacing: "0.5em" }}
+                transition={{ duration: 1.1, ease: [0.65, 0, 0.35, 1] }}
+                className="text-xs font-semibold uppercase tracking-[0.5em] text-primary"
               >
-                Summer Road Trip 2026
-              </p>
-              <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.35em] text-muted-foreground">
+                Journey Complete
+              </motion.p>
+              <motion.h2
+                initial={{ y: 18, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.25, duration: 1.1, ease: [0.65, 0, 0.35, 1] }}
+                className="mt-4 leading-[0.9] tracking-tight text-[color:var(--deep)]"
+                style={{ fontFamily: "var(--font-display)", fontWeight: 400 }}
+              >
+                <span className="block text-5xl sm:text-7xl md:text-[6.5rem]">
+                  Summer Road Trip
+                </span>
+                <span className="mt-2 block text-4xl italic text-primary sm:text-6xl md:text-7xl">
+                  2026
+                </span>
+              </motion.h2>
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.6, duration: 0.9 }}
+                className="mt-6 text-[11px] font-semibold uppercase tracking-[0.4em] text-muted-foreground sm:text-sm"
+              >
                 {TOTAL_MILES.toLocaleString()} Miles · {WAYPOINTS.length - 1} Stops
-              </p>
+              </motion.p>
             </div>
           </motion.div>
         )}
@@ -580,12 +619,13 @@ export function RoadTripAnimation({
         </div>
       )}
 
-      {/* Bottom-right progress */}
-      {!chromeless && stage !== "intro" && stage !== "reveal" && stage !== "zoomHome" && (
+      {/* Bottom-right progress — fixed position from zoom-in through outro */}
+      {!chromeless && stage !== "intro" && stage !== "reveal" && (
         <ProgressReadout
           segmentLens={segmentLens}
           pathLen={pathLen}
           visibleIndex={visibleIndex}
+          stage={stage}
         />
       )}
 
@@ -675,10 +715,12 @@ function ProgressReadout({
   segmentLens,
   pathLen,
   visibleIndex,
+  stage,
 }: {
   segmentLens: number[];
   pathLen: ReturnType<typeof useMotionValue<number>>;
   visibleIndex: number;
+  stage: Stage;
 }) {
   const [miles, setMiles] = useState(0);
   const totalLen = segmentLens.at(-1) ?? 0;
@@ -690,13 +732,17 @@ function ProgressReadout({
 
   const nextIdx = Math.min(visibleIndex + 1, WAYPOINTS.length - 1);
   const next = WAYPOINTS[nextIdx];
+  const complete = stage === "done";
+  const fmt = (n: number) => n.toLocaleString("en-US");
 
   return (
     <div className="pointer-events-none absolute bottom-6 right-6 flex flex-col items-end gap-2">
-      <div className="rounded-full bg-white/85 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-[color:var(--deep)] shadow-[0_6px_20px_-8px_rgba(15,23,42,0.3)] backdrop-blur">
-        {miles.toLocaleString()} / {TOTAL_MILES.toLocaleString()} mi
+      <div className="min-w-[220px] rounded-full bg-white/90 px-5 py-2.5 text-right text-[11px] font-semibold uppercase tracking-[0.28em] tabular-nums text-[color:var(--deep)] shadow-[0_6px_20px_-8px_rgba(15,23,42,0.3)] backdrop-blur">
+        {complete
+          ? `${fmt(TOTAL_MILES)} Miles`
+          : `${fmt(miles)} of ${fmt(TOTAL_MILES)} Miles`}
       </div>
-      {visibleIndex >= 0 && visibleIndex < WAYPOINTS.length - 1 && (
+      {!complete && visibleIndex >= 0 && visibleIndex < WAYPOINTS.length - 1 && (
         <div className="rounded-2xl bg-white/85 px-4 py-3 text-right shadow-[0_10px_30px_-12px_rgba(15,23,42,0.25)] backdrop-blur">
           <p className="text-[9px] font-semibold uppercase tracking-[0.3em] text-muted-foreground">
             Next Stop

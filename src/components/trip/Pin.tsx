@@ -17,17 +17,17 @@ const PIN_HEIGHT = 34;
 export function Pin({ waypoint, visible, showMiles = true, compact = false }: Props) {
   const iconSize = compact ? 12 : 18;
   const side = waypoint.labelSide;
-  const labelW = Math.max(88, waypoint.name.length * 7.6 + 24);
+  const labelW = Math.max(104, waypoint.name.length * 8.6 + 26);
 
   // Position of the name label relative to the pin origin.
   const labelPos =
     side === "left"
-      ? { x: -labelW - 16, y: -PIN_HEIGHT - 6 }
+      ? { x: -labelW - 18, y: -PIN_HEIGHT - 8 }
       : side === "top"
-        ? { x: -labelW / 2, y: -PIN_HEIGHT - 54 }
+        ? { x: -labelW / 2, y: -PIN_HEIGHT - 60 }
         : side === "bottom"
-          ? { x: -labelW / 2, y: 18 }
-          : { x: 16, y: -PIN_HEIGHT - 6 };
+          ? { x: -labelW / 2, y: 20 }
+          : { x: 18, y: -PIN_HEIGHT - 8 };
 
   const milesPos =
     side === "left"
@@ -83,18 +83,18 @@ export function Pin({ waypoint, visible, showMiles = true, compact = false }: Pr
         >
           <rect
             x={0}
-            y={-13}
+            y={-15}
             width={labelW}
-            height={28}
-            rx={7}
+            height={32}
+            rx={8}
             fill="#ffffff"
             stroke="var(--border)"
-            strokeWidth={0.8}
+            strokeWidth={0.9}
           />
           <text
-            x={10}
+            x={12}
             y={-1}
-            fontSize={9.5}
+            fontSize={11.5}
             fontWeight={700}
             fill="var(--deep)"
             letterSpacing={0.6}
@@ -103,10 +103,10 @@ export function Pin({ waypoint, visible, showMiles = true, compact = false }: Pr
           </text>
           {waypoint.region && (
             <text
-              x={10}
-              y={10}
-              fontSize={7.5}
-              fontWeight={500}
+              x={12}
+              y={11}
+              fontSize={8.5}
+              fontWeight={600}
               fill="var(--muted-foreground)"
               letterSpacing={0.4}
             >
