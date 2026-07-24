@@ -16,6 +16,8 @@ import { DestinationIcon } from "./DestinationIcons";
 
 const VIEW_W = 975;
 const VIEW_H = 610;
+// Base zoom so the map fills ~85-90% of the frame instead of the full viewBox.
+const BASE_SCALE = 1.15;
 
 type Stage =
   | "intro"
@@ -95,7 +97,7 @@ function sampleStep<T>(kfs: StepKf<T>[], t: number): T {
 function buildTimeline(segmentLens: number[]): Timeline {
   const camX: ContKf[] = [{ t: 0, v: 487.5 }];
   const camY: ContKf[] = [{ t: 0, v: 305 }];
-  const camS: ContKf[] = [{ t: 0, v: 1 }];
+  const camS: ContKf[] = [{ t: 0, v: BASE_SCALE }];
   const path: ContKf[] = [{ t: 0, v: 0 }];
   const rvOp: ContKf[] = [{ t: 0, v: 0 }];
   const stage: StepKf<Stage>[] = [{ t: 0, v: "intro" }];
@@ -159,7 +161,8 @@ function buildTimeline(segmentLens: number[]): Timeline {
   for (let i = 1; i < WAYPOINTS.length; i++) {
     const toLen = segmentLens[i];
     const miles = WAYPOINTS[i].milesFromPrev;
-    const driveDur = Math.min(3.4, Math.max(1.8, miles / 160));
+    // Consistent 1.5-2s drive-to-zoom transitions per client spec.
+    const driveDur = 1.8;
     const midX = (WAYPOINTS[i].x + WAYPOINTS[i - 1].x) / 2;
     const midY = (WAYPOINTS[i].y + WAYPOINTS[i - 1].y) / 2;
 
@@ -173,15 +176,17 @@ function buildTimeline(segmentLens: number[]): Timeline {
     t += driveDur;
     moving.push({ t, v: 0 });
 
-    // Arrive: 1.2s zoom + drop pin, then 2s pause
+    // Arrive: 1.6s cinematic zoom, settle, then reveal label + icon.
     snapshot(t);
     stage.push({ t, v: "arrived" });
-    tween(camX, t, t + 1.2, WAYPOINTS[i].x, easeCam);
-    tween(camY, t, t + 1.2, WAYPOINTS[i].y, easeCam);
-    tween(camS, t, t + 1.2, 2.8, easeCam);
-    t += 1.2;
+    tween(camX, t, t + 1.6, WAYPOINTS[i].x, easeCam);
+    tween(camY, t, t + 1.6, WAYPOINTS[i].y, easeCam);
+    tween(camS, t, t + 1.6, 2.8, easeCam);
+    t += 1.6;
+    // Camera settles for a beat before the label + icon appear.
+    t += 0.35;
     visible.push({ t, v: i });
-    t += 2.0;
+    t += 1.9;
   }
 
   // Scene 6 — outro overview (2.6s + 2.2s hold)
@@ -189,10 +194,12 @@ function buildTimeline(segmentLens: number[]): Timeline {
   stage.push({ t, v: "outro" });
   tween(camX, t, t + 2.6, 487.5, easeCam);
   tween(camY, t, t + 2.6, 305, easeCam);
-  tween(camS, t, t + 2.6, 1, easeCam);
+  tween(camS, t, t + 2.6, BASE_SCALE, easeCam);
   t += 2.6;
-  t += 2.2;
+  t += 2.6;
   stage.push({ t, v: "done" });
+  // Final fade-out beat.
+  t += 0.8;
 
   return { duration: t, camX, camY, camS, path, rvOp, stage, visible, moving, title };
 }
@@ -219,7 +226,7 @@ export function RoadTripAnimation({
   const pathLen = useMotionValue(0);
   const camX = useMotionValue(487.5);
   const camY = useMotionValue(305);
-  const camScale = useMotionValue(1);
+  const camScale = useMotionValue(BASE_SCALE);
   const rvOpacity = useMotionValue(0);
   const rvMoving = useMotionValue(0);
   const dashOffset = useMotionValue(1);
