@@ -13,30 +13,42 @@ type Props = {
 };
 
 const PIN_HEIGHT = 34;
+// Vertical distance from the pin tip to the icon-badge center.
+const ICON_OFFSET = 34;
+// Icon badge outer radius (matches the visual ring below).
+const ICON_RADIUS = 17;
+// Minimum breathing room between the icon badge and the label rect.
+const LABEL_GAP = 14;
 
 export function Pin({ waypoint, visible, showMiles = true, compact = false }: Props) {
-  const iconSize = compact ? 12 : 18;
+  const iconSize = compact ? 12 : 16;
   const side = waypoint.labelSide;
   const labelW = Math.max(104, waypoint.name.length * 8.6 + 26);
+  const labelH = 34;
+  const iconTopY = -PIN_HEIGHT - ICON_OFFSET - ICON_RADIUS;
+  const iconBottomY = -PIN_HEIGHT - ICON_OFFSET + ICON_RADIUS;
 
-  // Position of the name label relative to the pin origin.
+  // Label positions: keep >= LABEL_GAP away from the icon badge in every direction.
   const labelPos =
     side === "left"
-      ? { x: -labelW - 18, y: -PIN_HEIGHT - 8 }
+      ? { x: -labelW - (ICON_RADIUS + LABEL_GAP), y: -PIN_HEIGHT - ICON_OFFSET }
       : side === "top"
-        ? { x: -labelW / 2, y: -PIN_HEIGHT - 60 }
+        ? { x: -labelW / 2, y: iconTopY - LABEL_GAP - labelH / 2 }
         : side === "bottom"
-          ? { x: -labelW / 2, y: 20 }
-          : { x: 18, y: -PIN_HEIGHT - 8 };
+          ? { x: -labelW / 2, y: iconBottomY + LABEL_GAP + labelH / 2 }
+          : { x: ICON_RADIUS + LABEL_GAP, y: -PIN_HEIGHT - ICON_OFFSET };
 
+  // Mileage chip: opposite side of the label so they never collide.
+  const milesW = 56;
+  const milesH = 22;
   const milesPos =
     side === "left"
-      ? { x: 14, y: -PIN_HEIGHT - 6 }
+      ? { x: ICON_RADIUS + LABEL_GAP, y: -PIN_HEIGHT - ICON_OFFSET }
       : side === "top"
-        ? { x: 22, y: -PIN_HEIGHT - 6 }
+        ? { x: -milesW / 2, y: iconBottomY + LABEL_GAP + milesH / 2 }
         : side === "bottom"
-          ? { x: -60, y: 22 }
-          : { x: -60, y: -PIN_HEIGHT - 6 };
+          ? { x: -milesW / 2, y: iconTopY - LABEL_GAP - milesH / 2 }
+          : { x: -ICON_RADIUS - LABEL_GAP - milesW, y: -PIN_HEIGHT - ICON_OFFSET };
 
   return (
     <g style={{ transform: `translate(${waypoint.x}px, ${waypoint.y}px)` }}>
@@ -63,10 +75,10 @@ export function Pin({ waypoint, visible, showMiles = true, compact = false }: Pr
           initial={{ scale: 0, opacity: 0 }}
           animate={visible ? { scale: 1, opacity: 1 } : { scale: 0, opacity: 0 }}
           transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.15 }}
-          style={{ transform: `translate(0px, ${-PIN_HEIGHT - 24}px)` }}
+          style={{ transform: `translate(0px, ${-PIN_HEIGHT - ICON_OFFSET}px)` }}
         >
-          <circle r={17} fill="#ffffff" stroke="var(--pin)" strokeWidth={1.4} />
-          <circle r={20} fill="none" stroke="var(--pin)" strokeWidth={0.6} opacity={0.35} />
+          <circle r={ICON_RADIUS} fill="#ffffff" stroke="var(--pin)" strokeWidth={1.4} />
+          <circle r={ICON_RADIUS + 3} fill="none" stroke="var(--pin)" strokeWidth={0.6} opacity={0.35} />
           <g style={{ transform: `translate(-${iconSize / 2}px, -${iconSize / 2}px)`, color: "var(--deep)" }}>
             <DestinationIcon icon={waypoint.icon} size={iconSize} />
           </g>
@@ -83,9 +95,9 @@ export function Pin({ waypoint, visible, showMiles = true, compact = false }: Pr
         >
           <rect
             x={0}
-            y={-15}
+            y={-labelH / 2}
             width={labelW}
-            height={32}
+            height={labelH}
             rx={8}
             fill="#ffffff"
             stroke="var(--border)"
@@ -93,7 +105,7 @@ export function Pin({ waypoint, visible, showMiles = true, compact = false }: Pr
           />
           <text
             x={12}
-            y={-1}
+            y={-2}
             fontSize={11.5}
             fontWeight={700}
             fill="var(--deep)"
@@ -104,7 +116,7 @@ export function Pin({ waypoint, visible, showMiles = true, compact = false }: Pr
           {waypoint.region && (
             <text
               x={12}
-              y={11}
+              y={12}
               fontSize={8.5}
               fontWeight={600}
               fill="var(--muted-foreground)"
@@ -124,17 +136,17 @@ export function Pin({ waypoint, visible, showMiles = true, compact = false }: Pr
           transition={{ duration: 0.4, delay: 0.5 }}
           style={{ transform: `translate(${milesPos.x}px, ${milesPos.y}px)` }}
         >
-          <rect x={0} y={-10} width={48} height={20} rx={5} fill="var(--deep)" />
+          <rect x={0} y={-milesH / 2} width={milesW} height={milesH} rx={6} fill="var(--deep)" />
           <text
-            x={24}
+            x={milesW / 2}
             y={4}
             textAnchor="middle"
-            fontSize={9}
+            fontSize={10}
             fontWeight={700}
             fill="#fff"
             letterSpacing={0.6}
           >
-            {waypoint.milesFromPrev} MI
+            {waypoint.milesFromPrev.toLocaleString()} MI
           </text>
         </motion.g>
       )}
