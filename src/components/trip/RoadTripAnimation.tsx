@@ -619,12 +619,13 @@ export function RoadTripAnimation({
         </div>
       )}
 
-      {/* Bottom-right progress */}
-      {!chromeless && stage !== "intro" && stage !== "reveal" && stage !== "zoomHome" && (
+      {/* Bottom-right progress — fixed position from zoom-in through outro */}
+      {!chromeless && stage !== "intro" && stage !== "reveal" && (
         <ProgressReadout
           segmentLens={segmentLens}
           pathLen={pathLen}
           visibleIndex={visibleIndex}
+          stage={stage}
         />
       )}
 
@@ -714,10 +715,12 @@ function ProgressReadout({
   segmentLens,
   pathLen,
   visibleIndex,
+  stage,
 }: {
   segmentLens: number[];
   pathLen: ReturnType<typeof useMotionValue<number>>;
   visibleIndex: number;
+  stage: Stage;
 }) {
   const [miles, setMiles] = useState(0);
   const totalLen = segmentLens.at(-1) ?? 0;
@@ -729,13 +732,17 @@ function ProgressReadout({
 
   const nextIdx = Math.min(visibleIndex + 1, WAYPOINTS.length - 1);
   const next = WAYPOINTS[nextIdx];
+  const complete = stage === "done";
+  const fmt = (n: number) => n.toLocaleString("en-US");
 
   return (
     <div className="pointer-events-none absolute bottom-6 right-6 flex flex-col items-end gap-2">
-      <div className="rounded-full bg-white/85 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-[color:var(--deep)] shadow-[0_6px_20px_-8px_rgba(15,23,42,0.3)] backdrop-blur">
-        {miles.toLocaleString()} / {TOTAL_MILES.toLocaleString()} mi
+      <div className="min-w-[220px] rounded-full bg-white/90 px-5 py-2.5 text-right text-[11px] font-semibold uppercase tracking-[0.28em] tabular-nums text-[color:var(--deep)] shadow-[0_6px_20px_-8px_rgba(15,23,42,0.3)] backdrop-blur">
+        {complete
+          ? `${fmt(TOTAL_MILES)} Miles`
+          : `${fmt(miles)} of ${fmt(TOTAL_MILES)} Miles`}
       </div>
-      {visibleIndex >= 0 && visibleIndex < WAYPOINTS.length - 1 && (
+      {!complete && visibleIndex >= 0 && visibleIndex < WAYPOINTS.length - 1 && (
         <div className="rounded-2xl bg-white/85 px-4 py-3 text-right shadow-[0_10px_30px_-12px_rgba(15,23,42,0.25)] backdrop-blur">
           <p className="text-[9px] font-semibold uppercase tracking-[0.3em] text-muted-foreground">
             Next Stop
