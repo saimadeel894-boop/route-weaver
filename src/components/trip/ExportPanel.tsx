@@ -147,7 +147,7 @@ export function ExportPanel() {
 
   return (
     <>
-      <div className="pointer-events-auto absolute right-6 top-6 z-20 flex items-center gap-2">
+      <div className="pointer-events-auto absolute bottom-6 right-6 z-20 flex flex-col items-end gap-2">
         <button
           type="button"
           onClick={() => handleExport("16:9")}
