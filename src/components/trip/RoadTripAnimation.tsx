@@ -628,7 +628,7 @@ export function RoadTripAnimation({
 
       {/* Fixed UI layer: separate from the SVG map/camera transform. */}
       {!chromeless && stage !== "intro" && stage !== "reveal" && (
-        <div className="pointer-events-none absolute inset-0 z-50">
+        <div data-mileage-layer="fixed-ui" className="pointer-events-none absolute inset-0 z-50">
           <ProgressReadout
             segmentLens={segmentLens}
             pathLen={pathLen}
@@ -740,7 +740,7 @@ function ProgressReadout({
   const fmt = (n: number) => n.toLocaleString("en-US");
 
   return (
-    <div className="absolute right-6 top-6 h-[76px] w-[260px]">
+    <div data-mileage-box="true" className="absolute right-6 top-6 h-[76px] w-[260px]">
       <div className="flex h-full w-full flex-col items-end justify-center gap-1 rounded-2xl border border-border/70 bg-white/95 px-5 text-right shadow-[0_16px_38px_-16px_rgba(15,23,42,0.45)] backdrop-blur-md">
         <p className="text-[9px] font-semibold uppercase tracking-[0.4em] text-muted-foreground">
           {complete ? "Total Distance" : "Mileage"}
