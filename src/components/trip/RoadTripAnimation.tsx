@@ -495,7 +495,6 @@ export function RoadTripAnimation({
                 waypoint={w}
                 visible
                 compact={!isActive}
-                showMiles={false}
               />
             );
           })}
