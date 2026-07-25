@@ -6,8 +6,6 @@ type Props = {
   waypoint: Waypoint;
   /** Show pin + badge. */
   visible: boolean;
-  /** Show mileage flag (from previous stop). */
-  showMiles?: boolean;
   /** Compact ("summary") variant for the final overview. */
   compact?: boolean;
 };
@@ -20,7 +18,7 @@ const ICON_RADIUS = 17;
 // Minimum breathing room between the icon badge and the label rect.
 const LABEL_GAP = 14;
 
-export function Pin({ waypoint, visible, showMiles = true, compact = false }: Props) {
+export function Pin({ waypoint, visible, compact = false }: Props) {
   const iconSize = compact ? 12 : 16;
   const side = waypoint.labelSide;
   const labelW = Math.max(104, waypoint.name.length * 8.6 + 26);
@@ -38,20 +36,8 @@ export function Pin({ waypoint, visible, showMiles = true, compact = false }: Pr
           ? { x: -labelW / 2, y: iconBottomY + LABEL_GAP + labelH / 2 }
           : { x: ICON_RADIUS + LABEL_GAP, y: -PIN_HEIGHT - ICON_OFFSET };
 
-  // Mileage chip: opposite side of the label so they never collide.
-  const milesW = 56;
-  const milesH = 22;
-  const milesPos =
-    side === "left"
-      ? { x: ICON_RADIUS + LABEL_GAP, y: -PIN_HEIGHT - ICON_OFFSET }
-      : side === "top"
-        ? { x: -milesW / 2, y: iconBottomY + LABEL_GAP + milesH / 2 }
-        : side === "bottom"
-          ? { x: -milesW / 2, y: iconTopY - LABEL_GAP - milesH / 2 }
-          : { x: -ICON_RADIUS - LABEL_GAP - milesW, y: -PIN_HEIGHT - ICON_OFFSET };
-
   return (
-    <g style={{ transform: `translate(${waypoint.x}px, ${waypoint.y}px)` }}>
+    <g data-map-pin={waypoint.id} style={{ transform: `translate(${waypoint.x}px, ${waypoint.y}px)` }}>
       {/* drop pin */}
       <motion.g
         initial={{ y: -30, opacity: 0 }}
@@ -72,6 +58,7 @@ export function Pin({ waypoint, visible, showMiles = true, compact = false }: Pr
       {/* icon badge above the pin */}
       {!compact && (
         <motion.g
+          data-map-icon={waypoint.id}
           initial={{ scale: 0, opacity: 0 }}
           animate={visible ? { scale: 1, opacity: 1 } : { scale: 0, opacity: 0 }}
           transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.15 }}
@@ -88,6 +75,7 @@ export function Pin({ waypoint, visible, showMiles = true, compact = false }: Pr
       {/* name label */}
       {!compact && (
         <motion.g
+          data-map-label={waypoint.id}
           initial={{ opacity: 0, y: 6 }}
           animate={visible ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
           transition={{ duration: 0.5, delay: 0.35 }}
@@ -128,28 +116,6 @@ export function Pin({ waypoint, visible, showMiles = true, compact = false }: Pr
         </motion.g>
       )}
 
-      {/* mileage chip */}
-      {!compact && showMiles && waypoint.milesFromPrev > 0 && (
-        <motion.g
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={visible ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.8 }}
-          transition={{ duration: 0.4, delay: 0.5 }}
-          style={{ transform: `translate(${milesPos.x}px, ${milesPos.y}px)` }}
-        >
-          <rect x={0} y={-milesH / 2} width={milesW} height={milesH} rx={6} fill="var(--deep)" />
-          <text
-            x={milesW / 2}
-            y={4}
-            textAnchor="middle"
-            fontSize={10}
-            fontWeight={700}
-            fill="#fff"
-            letterSpacing={0.6}
-          >
-            {waypoint.milesFromPrev.toLocaleString()} MI
-          </text>
-        </motion.g>
-      )}
     </g>
   );
 }
