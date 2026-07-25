@@ -404,7 +404,7 @@ export function RoadTripAnimation({
   );
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-background">
+    <div className="relative isolate h-full w-full overflow-hidden bg-background">
       {/* Ambient gradient wash */}
       <div
         aria-hidden
@@ -419,7 +419,7 @@ export function RoadTripAnimation({
         ref={svgRef}
         viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
         preserveAspectRatio="xMidYMid meet"
-        className="relative h-full w-full"
+        className="relative z-0 h-full w-full"
       >
         {/* Drifting clouds live outside the camera transform */}
         <g>
@@ -495,6 +495,7 @@ export function RoadTripAnimation({
                 waypoint={w}
                 visible
                 compact={!isActive}
+                showMiles={false}
               />
             );
           })}
@@ -625,13 +626,15 @@ export function RoadTripAnimation({
         </div>
       )}
 
-      {/* Bottom-right progress — fixed position from zoom-in through outro */}
+      {/* Fixed UI layer: separate from the SVG map/camera transform. */}
       {!chromeless && stage !== "intro" && stage !== "reveal" && (
-        <ProgressReadout
-          segmentLens={segmentLens}
-          pathLen={pathLen}
-          stage={stage}
-        />
+        <div className="pointer-events-none absolute inset-0 z-50">
+          <ProgressReadout
+            segmentLens={segmentLens}
+            pathLen={pathLen}
+            stage={stage}
+          />
+        </div>
       )}
 
       {/* Playback controls */}
@@ -737,8 +740,8 @@ function ProgressReadout({
   const fmt = (n: number) => n.toLocaleString("en-US");
 
   return (
-    <div className="pointer-events-none absolute right-8 top-8 z-10">
-      <div className="flex flex-col items-end gap-1 rounded-2xl border border-border/60 bg-white/95 px-5 py-3 text-right shadow-[0_10px_30px_-12px_rgba(15,23,42,0.35)] backdrop-blur">
+    <div className="absolute right-6 top-6 h-[76px] w-[260px]">
+      <div className="flex h-full w-full flex-col items-end justify-center gap-1 rounded-2xl border border-border/70 bg-white/95 px-5 text-right shadow-[0_16px_38px_-16px_rgba(15,23,42,0.45)] backdrop-blur-md">
         <p className="text-[9px] font-semibold uppercase tracking-[0.4em] text-muted-foreground">
           {complete ? "Total Distance" : "Mileage"}
         </p>
