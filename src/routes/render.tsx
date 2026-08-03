@@ -6,6 +6,8 @@ export const Route = createFileRoute("/render")({
 });
 
 function RenderPage() {
+  const seek =
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("seek") === "1";
   return (
     <div
       style={{
@@ -15,7 +17,7 @@ function RenderPage() {
         overflow: "hidden",
       }}
     >
-      <RoadTripAnimation chromeless autoPlay showControls={false} />
+      <RoadTripAnimation chromeless autoPlay={!seek} showControls={false} seekMode={seek} />
     </div>
   );
 }

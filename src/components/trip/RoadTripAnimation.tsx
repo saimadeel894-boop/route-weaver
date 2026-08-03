@@ -209,12 +209,15 @@ export function RoadTripAnimation({
   autoPlay = true,
   showControls = true,
   chromeless = false,
+  seekMode = false,
 }: {
   onComplete?: () => void;
   autoPlay?: boolean;
   showControls?: boolean;
   /** Hide brand chip + mileage HUD (used for clean MP4 exports). */
   chromeless?: boolean;
+  /** Expose window.__trip = { duration, seek(t) } for deterministic frame rendering. */
+  seekMode?: boolean;
 } = {}) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const pathRef = useRef<SVGPathElement | null>(null);
@@ -318,8 +321,25 @@ export function RoadTripAnimation({
 
   // Autoplay when timeline first becomes ready.
   useEffect(() => {
-    if (timeline && autoPlay && !completedRef.current) setIsPlaying(true);
-  }, [timeline, autoPlay]);
+    if (timeline && autoPlay && !seekMode && !completedRef.current) setIsPlaying(true);
+  }, [timeline, autoPlay, seekMode]);
+
+  // Deterministic frame-render hook (headless MP4 rendering).
+  useEffect(() => {
+    if (!seekMode || !timeline || typeof window === "undefined") return;
+    setIsPlaying(false);
+    (window as unknown as Record<string, unknown>)["__trip"] = {
+      duration,
+      seek: (t: number) => {
+        timeRef.current = t;
+        applyAt(t);
+        setTime(t);
+      },
+    };
+    return () => {
+      delete (window as unknown as Record<string, unknown>)["__trip"];
+    };
+  }, [seekMode, timeline, duration, applyAt]);
 
   // Playback loop.
   useEffect(() => {
@@ -581,7 +601,15 @@ export function RoadTripAnimation({
             transition={{ duration: 1.2, ease: [0.65, 0, 0.35, 1] }}
             className="pointer-events-none absolute inset-0 flex items-center justify-center"
           >
-            <div className="text-center">
+            <div
+              aria-hidden
+              className="absolute inset-0"
+              style={{
+                background:
+                  "radial-gradient(closest-side at 50% 50%, rgba(255,255,255,0.94) 0%, rgba(255,255,255,0.88) 55%, rgba(255,255,255,0) 100%)",
+              }}
+            />
+            <div className="relative text-center">
               <motion.p
                 initial={{ opacity: 0, letterSpacing: "0.2em" }}
                 animate={{ opacity: 1, letterSpacing: "0.5em" }}
@@ -625,8 +653,9 @@ export function RoadTripAnimation({
         </div>
       )}
 
-      {/* Fixed UI layer: separate from the SVG map/camera transform. */}
-      {!chromeless && stage !== "intro" && stage !== "reveal" && (
+      {/* Fixed UI layer: separate from the SVG map/camera transform.
+          Mileage is deliverable content, so it also renders in chromeless exports. */}
+      {stage !== "intro" && stage !== "reveal" && (
         <div data-mileage-layer="fixed-ui" className="pointer-events-none absolute inset-0 z-50">
           <ProgressReadout
             segmentLens={segmentLens}
