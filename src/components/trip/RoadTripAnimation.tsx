@@ -420,14 +420,6 @@ export function RoadTripAnimation({
     setIsPlaying(true);
   }, [timeline, applyAt]);
 
-  // Camera transform string
-  const cameraTransform = useTransform([camX, camY, camScale], (vals) => {
-    const [x, y, s] = vals as number[];
-    const tx = VIEW_W / 2 - x * s;
-    const ty = VIEW_H / 2 - y * s;
-    return `translate(${tx} ${ty}) scale(${s})`;
-  });
-
   const clouds = useMemo(
     () => [
       { x: 120, y: 90, s: 1, delay: 0 },
