@@ -240,6 +240,12 @@ export function RoadTripAnimation({
   const [time, setTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [rvPos, setRvPos] = useState({ x: WAYPOINTS[0].x, y: WAYPOINTS[0].y, angle: 0 });
+  // Deterministic render state (kept in React so every frame paints exactly
+  // what the timeline says — required for frame-accurate MP4 rendering).
+  const [cam, setCam] = useState({ x: 487.5, y: 305, s: BASE_SCALE });
+  const [dash, setDash] = useState(1);
+  const [rvOp, setRvOp] = useState(0);
+  const [moving, setMoving] = useState(0);
 
   // ── measure the path once mounted ──────────────────────────────────────────
   useEffect(() => {
@@ -296,14 +302,24 @@ export function RoadTripAnimation({
   const applyAt = useCallback(
     (t: number) => {
       if (!timeline) return;
-      camX.set(sampleCont(timeline.camX, t));
-      camY.set(sampleCont(timeline.camY, t));
-      camScale.set(sampleCont(timeline.camS, t));
+      const cx = sampleCont(timeline.camX, t);
+      const cy = sampleCont(timeline.camY, t);
+      const cs = sampleCont(timeline.camS, t);
+      camX.set(cx);
+      camY.set(cy);
+      camScale.set(cs);
+      setCam((p) => (p.x === cx && p.y === cy && p.s === cs ? p : { x: cx, y: cy, s: cs }));
       const pl = sampleCont(timeline.path, t);
       pathLen.set(pl);
-      dashOffset.set(Math.max(totalLen - pl, 0));
-      rvOpacity.set(sampleCont(timeline.rvOp, t));
-      rvMoving.set(sampleStep(timeline.moving, t));
+      const off = Math.max(totalLen - pl, 0);
+      dashOffset.set(off);
+      setDash((p) => (p === off ? p : off));
+      const op = sampleCont(timeline.rvOp, t);
+      rvOpacity.set(op);
+      setRvOp((p) => (p === op ? p : op));
+      const mv = sampleStep(timeline.moving, t);
+      rvMoving.set(mv);
+      setMoving((p) => (p === mv ? p : mv));
       const nextStage = sampleStep(timeline.stage, t);
       setStage((prev) => (prev === nextStage ? prev : nextStage));
       const nvi = sampleStep(timeline.visible, t);
@@ -458,8 +474,10 @@ export function RoadTripAnimation({
           ))}
         </g>
 
-        {/* Camera group */}
-        <motion.g style={{ transform: cameraTransform }}>
+        {/* Camera group — plain SVG attribute so every frame paints exactly. */}
+        <g
+          transform={`translate(${VIEW_W / 2 - cam.x * cam.s} ${VIEW_H / 2 - cam.y * cam.s}) scale(${cam.s})`}
+        >
           <UsaMap />
 
           {/* Route — soft glow underlay + main stroke */}
@@ -476,7 +494,7 @@ export function RoadTripAnimation({
               opacity: 0.55,
             }}
           />
-          <motion.path
+          <path
             ref={pathRef}
             d={ROUTE_PATH}
             fill="none"
@@ -486,11 +504,11 @@ export function RoadTripAnimation({
             strokeLinejoin="round"
             style={{
               strokeDasharray: totalLen || 1,
-              strokeDashoffset: dashOffset,
+              strokeDashoffset: dash,
               opacity: 0.85,
             }}
           />
-          <motion.path
+          <path
             d={ROUTE_PATH}
             fill="none"
             stroke="var(--route)"
@@ -499,7 +517,7 @@ export function RoadTripAnimation({
             strokeLinejoin="round"
             style={{
               strokeDasharray: totalLen || 1,
-              strokeDashoffset: dashOffset,
+              strokeDashoffset: dash,
             }}
           />
 
@@ -536,12 +554,12 @@ export function RoadTripAnimation({
             ))}
 
           {/* RV sprite */}
-          <motion.g style={{ opacity: rvOpacity }}>
+          <g style={{ opacity: rvOp }}>
             <g style={{ transform: `translate(${rvPos.x}px, ${rvPos.y}px)` }}>
-              <RV angle={rvPos.angle} moving={rvMoving.get()} />
+              <RV angle={rvPos.angle} moving={moving} />
             </g>
-          </motion.g>
-        </motion.g>
+          </g>
+        </g>
       </svg>
 
       {/* HUD overlays */}
@@ -586,7 +604,7 @@ export function RoadTripAnimation({
                 transition={{ delay: 0.7, duration: 0.8 }}
                 className="mt-6 text-xs font-semibold uppercase tracking-[0.4em] text-muted-foreground sm:text-sm"
               >
-                {WAYPOINTS.length - 1} Stops · {TOTAL_MILES.toLocaleString()} Miles · One RV
+                {WAYPOINTS.length} Stops • {TOTAL_MILES.toLocaleString()} Miles • 1 RV
               </motion.p>
             </div>
           </motion.div>
