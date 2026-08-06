@@ -43,6 +43,7 @@ async def render_one(browser, width: int, height: int, filename: str) -> Path:
     command = [
         "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
         "-f", "image2pipe", "-vcodec", "mjpeg", "-framerate", str(FPS), "-i", "-",
+        "-vf", "scale=in_range=full:out_range=tv,format=yuv420p",
         "-an", "-c:v", "libx264", "-preset", "medium", "-crf", "16",
         "-pix_fmt", "yuv420p", "-profile:v", "high", "-level", "4.2",
         "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709",

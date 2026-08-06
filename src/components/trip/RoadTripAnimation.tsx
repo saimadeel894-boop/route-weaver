@@ -198,8 +198,8 @@ function buildTimeline(segmentLens: number[]): Timeline {
   t += 2.6;
   t += 2.6;
   stage.push({ t, v: "done" });
-  // Final fade-out beat.
-  t += 0.8;
+  // Hold the complete route and centered title long enough for a resolved ending.
+  t += 2.6;
 
   return { duration: t, camX, camY, camS, path, rvOp, stage, visible, moving, title };
 }
