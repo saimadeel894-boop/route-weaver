@@ -42,7 +42,7 @@ async def render_one(browser, width: int, height: int, filename: str) -> Path:
     temporary = output.with_suffix(".rendering.mp4")
     command = [
         "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
-        "-f", "image2pipe", "-vcodec", "png", "-framerate", str(FPS), "-i", "-",
+        "-f", "image2pipe", "-vcodec", "mjpeg", "-framerate", str(FPS), "-i", "-",
         "-an", "-c:v", "libx264", "-preset", "medium", "-crf", "16",
         "-pix_fmt", "yuv420p", "-profile:v", "high", "-level", "4.2",
         "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709",
@@ -60,7 +60,7 @@ async def render_one(browser, width: int, height: int, filename: str) -> Path:
             await page.evaluate(
                 "() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
             )
-            image = await page.screenshot(type="png", animations="allow")
+            image = await page.screenshot(type="jpeg", quality=95, animations="allow")
             encoder.stdin.write(image)
             if frame % (FPS * 5) == 0:
                 print(f"{filename}: {frame}/{frame_count}", flush=True)
