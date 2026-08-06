@@ -482,7 +482,7 @@ export function RoadTripAnimation({
             strokeLinejoin="round"
             style={{
               strokeDasharray: totalLen || 1,
-              strokeDashoffset: totalLen || 1,
+              strokeDashoffset: dash,
               opacity: 0.55,
             }}
           />
@@ -648,7 +648,7 @@ export function RoadTripAnimation({
                 transition={{ delay: 0.6, duration: 0.9 }}
                 className="mt-6 text-[11px] font-semibold uppercase tracking-[0.4em] text-muted-foreground sm:text-sm"
               >
-                {TOTAL_MILES.toLocaleString()} Miles · {WAYPOINTS.length - 1} Stops
+                {TOTAL_MILES.toLocaleString()} Miles · {WAYPOINTS.length} Stops
               </motion.p>
             </div>
           </motion.div>
