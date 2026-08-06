@@ -198,8 +198,8 @@ function buildTimeline(segmentLens: number[]): Timeline {
   t += 2.6;
   t += 2.6;
   stage.push({ t, v: "done" });
-  // Final fade-out beat.
-  t += 0.8;
+  // Hold the complete route and centered title long enough for a resolved ending.
+  t += 2.6;
 
   return { duration: t, camX, camY, camS, path, rvOp, stage, visible, moving, title };
 }
@@ -482,7 +482,7 @@ export function RoadTripAnimation({
             strokeLinejoin="round"
             style={{
               strokeDasharray: totalLen || 1,
-              strokeDashoffset: totalLen || 1,
+              strokeDashoffset: dash,
               opacity: 0.55,
             }}
           />
@@ -648,7 +648,7 @@ export function RoadTripAnimation({
                 transition={{ delay: 0.6, duration: 0.9 }}
                 className="mt-6 text-[11px] font-semibold uppercase tracking-[0.4em] text-muted-foreground sm:text-sm"
               >
-                {TOTAL_MILES.toLocaleString()} Miles · {WAYPOINTS.length - 1} Stops
+                {TOTAL_MILES.toLocaleString()} Miles · {WAYPOINTS.length} Stops
               </motion.p>
             </div>
           </motion.div>
